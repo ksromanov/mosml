@@ -6,7 +6,7 @@
 
 %}
 
-%token BAS BASIS LET LOCAL OPEN SEMICOLON STRUCTURE SIGNATURE FUNCTOR IN END EQUAL AND EOF ANN 
+%token BAS BASIS LET LOCAL OPEN SEMICOLON STRUCTURE SIGNATURE FUNCTOR IN END EQUAL AND EOF ANN PRIM
 %token <Mlb.includedFileType*string> PATH
 
 %token <string> STRING ID
@@ -53,6 +53,7 @@ basDec :
   | FUNCTOR bFunBindList { Mlb.Functor $2 }
   | PATH { Mlb.Path $1 }
   | ANN annotationList IN basDecs END { Mlb.Annotation ( $2, $4) }
+  | PRIM { Mlb.Prim }
 
 basExp :
     BAS basDecs END { Mlb.Bas $2 }

@@ -196,6 +196,7 @@ rule Lexer = parse
   | "open" { OPEN }
   | ";" { SEMICOLON }
   | (eof | `\^Z`) { resetLexer(); EOF }
+  | "_prim" { PRIM }
   | id { ID (getLexeme lexbuf)}
 
   | filePath".fun" { PATH (Mlb.FUNFile, (getLexeme lexbuf)) }
@@ -216,10 +217,17 @@ rule Lexer = parse
   | quotedString
     { quotedStringPosUpdate lexbuf; STRING (processEscaped (getLexeme lexbuf)) }
 
+  | "(*)" { LineComment lexbuf }
+  | "(*#line" { beginComment (); Comment lexbuf }
   | "(*" { beginComment (); Comment lexbuf }
   | "*)" { Log.error (Log.UnexpectedCommentEnd (currentPosition true lexbuf)); Lexer lexbuf }
   | `\n` { newLinePosUpdate lexbuf; Lexer lexbuf }
   | _ { Lexer lexbuf }
+
+and LineComment = parse
+    `\n` { newLinePosUpdate lexbuf; Lexer lexbuf }
+  | (eof | `\^Z`) { resetLexer(); EOF }
+  | _ { LineComment lexbuf }
 
 and Comment = parse
     "(*" { beginComment (); Comment lexbuf }

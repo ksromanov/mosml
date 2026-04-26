@@ -22,8 +22,9 @@ type annotation = string
 
 datatype basDec = Basis of basBind list | Local of (basDec list)*(basDec list)
     | Open of basId list | Structure of strBind list | Signature of sigBind list 
-    | Functor of funBind list | Path of includedFileType*string 
+    | Functor of funBind list | Path of includedFileType*string
     | Annotation of (string list)*(basDec list)
+    | Prim
     and basBind = BasBind of (basId)*(basExp)
     and basExp = Bas of basDec list | BasId of basId | Let of (basDec list)*basExp
     (* The type of referenced file - .mlb, .sig, .sml, .fun. For some

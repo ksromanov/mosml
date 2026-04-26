@@ -119,6 +119,7 @@ fun printAST print basDecs =
             app (printBasDec indent) basDecList
           | printBasDec indent (Path path) = printPath indent path
           | printBasDec indent (Annotation annotations) = printAnnotation indent annotations
+          | printBasDec indent Prim = print (indent ^ "_prim\n")
     in
         app (printBasDec "") basDecs
     end
@@ -253,6 +254,7 @@ fun loadMlbFileTree file =
                   | expandBasDec (Mlb.Path nonMlbPath) = (Mlb.Path nonMlbPath)
                   | expandBasDec (Mlb.Annotation (annList, basDecList)) =
                         Mlb.Annotation (annList, map expandBasDec basDecList)
+                  | expandBasDec (Mlb.Prim) = Mlb.Prim
                 and expandBasBind (Mlb.BasBind (basId, basExp)) = 
                         Mlb.BasBind (basId, expandBasExp basExp)
                 and expandBasExp (Mlb.Bas basDecList) =
@@ -296,6 +298,7 @@ fun extractPaths basDecList =
           | pathsOfBasDec (Mlb.Functor _) = []
           | pathsOfBasDec (Mlb.Path path) = [path]
           | pathsOfBasDec (Mlb.Annotation _) = []
+          | pathsOfBasDec (Mlb.Prim) = []
         and pathsOfBasExp (Mlb.Bas basDecList) =
             foldl (fn (basDec, paths) => (pathsOfBasDec basDec) @ paths) [] basDecList
           | pathsOfBasExp (Mlb.BasId _) = []
