@@ -52,8 +52,16 @@ fun anonymous s =
 		 !initialMode)];
 	   initialContext := (!initialContext) @ [filename])
       end
+    else if Filename.check_suffix s ".fun" then
+      let val filename = Filename.chop_suffix s ".fun"
+      in
+          (initialFiles :=
+               (!initialFiles) @
+               [(remove filename (!initialContext), s, !initialMode)];
+           initialContext := (!initialContext) @ [filename])
+      end
     else if Filename.check_suffix s ".ui" then
-      let val filename = Filename.chop_suffix s ".ui" 
+      let val filename = Filename.chop_suffix s ".ui"
       in
 	   initialContext := (!initialContext) @ [filename]
       end (* cvr: this implies that the .ui file must be on the load path *)
