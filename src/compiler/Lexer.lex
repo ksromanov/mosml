@@ -308,7 +308,14 @@ and TokenN = parse
           RPAREN
       }
   | ";"         { SEMICOLON }
-  | "_prim"     { UNDER_PRIM }
+  | "_prim"                { UNDER_PRIM }
+  | "_command_line_const"  { UNDER_COMMAND_LINE_CONST }
+  | "_build_const"         { UNDER_BUILD_CONST }
+  | "_import"              { UNDER_IMPORT }
+  | "_export"              { UNDER_EXPORT }
+  | "_symbol"              { UNDER_SYMBOL }
+  | "_address"             { UNDER_ADDRESS }
+  | "_const"               { UNDER_CONST }
   | (eof | `\^Z`) { EOF }
   | ""          { if !quotation then TokenIdQ lexbuf else TokenId lexbuf }
 

@@ -80,7 +80,8 @@ end
 %token PRIM_REFTYPE
 %token PRIM_TYPE
 %token PRIM_VAL
-%token UNDER_PRIM
+%token UNDER_PRIM UNDER_COMMAND_LINE_CONST UNDER_BUILD_CONST
+%token UNDER_IMPORT UNDER_EXPORT UNDER_SYMBOL UNDER_ADDRESS UNDER_CONST
 %token <Const.QualifiedIdent> QUAL_ID
 %token <Const.QualifiedIdent> QUAL_STAR
 %token QUOTEL
@@ -203,6 +204,7 @@ end
 %type <Asynt.Pat Mixture.Row * bool> PatRow_opt PatRow CommaPatRow_opt
 %type <Asynt.Pat option> AsPat_opt
 %type <Asynt.TyConPath> TyConPath
+%type <unit> FfiAttrs FfiSemi
 %type <Asynt.Ty> Ty Ty_sans_STAR AtomicTy
 %type <Asynt.Ty list> TupleTy TyComma_seq2
 %type <Asynt.Ty Mixture.Row> TyRow_opt TyRow CommaTyRow_opt
@@ -242,6 +244,8 @@ IdentWithLoc :
 OpIdent :
     Ident       { mkIdInfo (mkLoc { qual="", id=[$1] }) false }
   | OP Ident    { mkIdInfo (mkLoc { qual="", id=[$2] }) true }
+  | OP EQUALS   { mkIdInfo (mkLoc { qual="", id=["="] }) true }
+  | OP STAR     { mkIdInfo (mkLoc { qual="", id=["*"] }) true }
 ;
 
 EqIdent :
@@ -278,6 +282,7 @@ LongOpIdent :
   | OP Ident       { mkIdInfo (mkLoc { qual="", id=[$2] }) true }
   | OP QUAL_ID     { mkIdInfo (mkLoc $2) true }
   | OP QUAL_STAR   { mkIdInfo (mkLoc $2) true }
+  | OP EQUALS      { mkIdInfo (mkLoc { qual="", id=["="] }) true }
 ;
 
 LongOpEqIdent :
@@ -600,8 +605,38 @@ AtExp :
                         { mkLoc(VECexp $2) }
   | QUOTEL QuoteTail
       { listExp(mkLoc $2) }
-  | UNDER_PRIM STRING COLON Ty
+  | UNDER_PRIM STRING COLON Ty FfiSemi
       { mkLoc(PRIMexp($2, $4)) }
+  | UNDER_CONST STRING COLON Ty FfiSemi
+      { mkLoc(PRIMexp("_const " ^ $2, $4)) }
+  | UNDER_BUILD_CONST STRING COLON Ty FfiSemi
+      { mkLoc(PRIMexp("_build_const " ^ $2, $4)) }
+  | UNDER_COMMAND_LINE_CONST STRING COLON Ty EQUALS AtExp
+      { $6 }
+  | UNDER_IMPORT STRING FfiAttrs COLON Ty FfiSemi
+      { mkLoc(PRIMexp("_import " ^ $2, $5)) }
+  | UNDER_IMPORT STAR FfiAttrs COLON Ty FfiSemi
+      { mkLoc(PRIMexp("_import *", $5)) }
+  | UNDER_EXPORT STRING FfiAttrs COLON Ty FfiSemi
+      { mkLoc(PRIMexp("_export " ^ $2, $5)) }
+  | UNDER_SYMBOL STRING FfiAttrs COLON Ty FfiSemi
+      { mkLoc(PRIMexp("_symbol " ^ $2, $5)) }
+  | UNDER_SYMBOL STAR COLON Ty FfiSemi
+      { mkLoc(PRIMexp("_symbol *", $4)) }
+  | UNDER_ADDRESS STRING FfiAttrs COLON Ty FfiSemi
+      { mkLoc(PRIMexp("_address " ^ $2, $5)) }
+;
+
+FfiAttrs :
+    { () }
+  | ID FfiAttrs
+      { () }
+;
+
+FfiSemi :
+    { () }
+  | SEMICOLON
+      { () }
 ;
 
 QuoteTail :

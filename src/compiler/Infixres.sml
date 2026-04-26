@@ -41,11 +41,34 @@ val theExpStack =
 };
 
 fun resolveInfixExp (iBas : InfixBasis) loc exps =
-  resolveInfix theExpStack (lookup_iBas iBas) exps
-  handle WrongInfix =>
-    errorMsg loc "Ill-formed infix expression"
-       | MixedAssociativity =>
-    errorMsg loc "Mixed left- and right-associative operators of equal precedence"
+  let fun isInfixBareExp e =
+        case e of
+          (_, VIDPATHexp(ref (RESvidpath ii))) =>
+            let val id = hd (#id (#qualid ii)) handle _ => ""
+            in case lookup_iBas iBas id of
+                   INFIXst _  => not (#withOp (#info ii))
+                 | INFIXRst _ => not (#withOp (#info ii))
+                 | _          => false
+            end
+        | _ => false
+      fun tryResolve es =
+        resolveInfix theExpStack (lookup_iBas iBas) es
+        handle WrongInfix =>
+          errorMsg loc "Ill-formed infix expression"
+             | MixedAssociativity =>
+          errorMsg loc "Mixed left- and right-associative operators of equal precedence"
+      val exps' =
+        case exps of
+          (e1 :: e2 :: rest) =>
+            if isInfixBareExp e1 andalso not (isInfixBareExp e2)
+            then (xxLR e1 e2, APPexp(e1, e2)) :: rest
+            else exps
+        | _ => exps
+  in
+    case exps' of
+      [e] => if isInfixBareExp e then e else tryResolve exps'
+    | _   => tryResolve exps'
+  end
 ;
 
 fun asId_Pat (_, VARpat ii) =
@@ -74,11 +97,26 @@ val thePatStack =
 ;
 
 fun resolveInfixPat iBas loc pats =
-  resolveInfix thePatStack (lookup_iBas iBas) pats
-  handle WrongInfix =>
-    errorMsg loc "Ill-formed infix pattern"
-       | MixedAssociativity =>
-    errorMsg loc "Mixed left- and right-associative operators of equal precedence"
+  (* A singleton infix operator used as a val LHS (e.g. val < = ...) is legal SML.
+     Treat it as a variable pattern rather than raising an error. *)
+  case pats of
+    [(loc', VARpat ii)] =>
+      let val id = hd (#id (#qualid ii)) handle _ => ""
+          val isInfixId = case lookup_iBas iBas id of
+                              INFIXst _ => true | INFIXRst _ => true | _ => false
+      in if isInfixId andalso not (#withOp (#info ii))
+         then (loc', VARpat ii)
+         else resolveInfix thePatStack (lookup_iBas iBas) pats
+              handle WrongInfix => errorMsg loc "Ill-formed infix pattern"
+                   | MixedAssociativity =>
+                     errorMsg loc "Mixed left- and right-associative operators of equal precedence"
+      end
+  | _ =>
+      resolveInfix thePatStack (lookup_iBas iBas) pats
+      handle WrongInfix =>
+        errorMsg loc "Ill-formed infix pattern"
+           | MixedAssociativity =>
+        errorMsg loc "Mixed left- and right-associative operators of equal precedence"
 ;
 
 
@@ -158,6 +196,11 @@ fun resolveFClauseArgs iBas (pats : Pat list) =
              (* `fun <ap> = ...' *)
              errorMsg (xLR (hd pats))
                "Ill-formed left hand side of a clause")
+  | INFIXED ii :: _ =>
+     (* `fun <= args = ...' — infix op used as function name, valid in SML *)
+     (case pats of
+          _ :: rest => (ii, rest)
+        | [] => errorMsg (xLR (hd pats)) "Expecting function name or infix pattern")
   | _ =>
      (* `fun +' or something *)
      errorMsg (xLR (hd pats))
