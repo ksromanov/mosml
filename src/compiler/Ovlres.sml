@@ -351,6 +351,7 @@ and resolveOvlExp firstpass (loc, exp') =
       (resolveOvlModExp firstpass modexp;resolveOvlSigExp firstpass sigexp)
   | FUNCTORexp(modexp,sigexp,_) =>
       (resolveOvlModExp firstpass modexp;resolveOvlSigExp firstpass sigexp)
+  | PRIMexp _ => ()
 and resolveOvlMRule firstpass (MRule(ref pats, exp)) =
     (app (resolveOvlPat firstpass) pats; 
      resolveOvlExp firstpass exp) 

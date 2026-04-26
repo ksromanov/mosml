@@ -80,6 +80,7 @@ end
 %token PRIM_REFTYPE
 %token PRIM_TYPE
 %token PRIM_VAL
+%token UNDER_PRIM
 %token <Const.QualifiedIdent> QUAL_ID
 %token <Const.QualifiedIdent> QUAL_STAR
 %token QUOTEL
@@ -599,6 +600,8 @@ AtExp :
                         { mkLoc(VECexp $2) }
   | QUOTEL QuoteTail
       { listExp(mkLoc $2) }
+  | UNDER_PRIM STRING COLON Ty
+      { mkLoc(PRIMexp($2, $4)) }
 ;
 
 QuoteTail :

@@ -238,6 +238,7 @@ fun isSafe (_, exp') =
   | INFIXexp (ref (UNRESinfixexp e)) => fatalError "isSafe:2"
   | INFIXexp (ref (RESinfixexp e)) => isSafe e
   | TYPEDexp(e,ty) => isSafe e
+  | PRIMexp _ => false
   | ANDALSOexp(e1,e2) =>
       isSafe e1 andalso isSafe e2
   | ORELSEexp(e1,e2) =>
@@ -618,6 +619,11 @@ fun trExp (env as (rho, depth)) (exp as (loc, exp')) =
       Lhandle(trExp env e, trMatch loc env partial_try mrules)
   | RAISEexp e =>
       Lprim(Praise, [trExp env e])
+  | PRIMexp(name, _) =>
+      let val failExn = Lprim(Pget_global ({qual="General", id=["exn_fail"]}, 0), [])
+          val msg = Lconst(ATOMsc(STRINGscon("unimplemented primitive: " ^ name)))
+          val raiser = Lprim(Praise, [Lprim(Pmakeblock(CONtag(0,1)), [failExn, msg])])
+      in Lfn(raiser) end
   | IFexp(e0,e1,e2) =>
       Lif(trExp env e0, trExp env e1, trExp env e2)
   | WHILEexp(e1,e2) =>

@@ -106,6 +106,7 @@ and Exp' =
   | SEQexp of Exp * Exp
   | STRUCTUREexp of ModExp * SigExp * (ExMod option) ref
   | FUNCTORexp of ModExp * SigExp * (ExMod option) ref
+  | PRIMexp of string * Ty
 
 and RecExp =
     RECre of Exp Row

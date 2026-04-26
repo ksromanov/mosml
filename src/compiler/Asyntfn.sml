@@ -333,6 +333,8 @@ and printExp (_, exp') =
       (msgString "[functor "; printModExp modexp; msgString " as ";
        printSigExp sigexp;
        msgString "]")
+  | PRIMexp(name, _) =>
+      (msgString "_prim "; msgString ("\"" ^ name ^ "\""))
 and printExpField (lab, e) =
   (msgIBlock 0; printLab lab; msgString " ="; msgBreak(1, 2);
    printExp e; msgEBlock())

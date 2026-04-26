@@ -272,6 +272,7 @@ and resolveExpOp iBas (exp as (loc, exp')) =
       (resolveModExpOp iBas modexp;resolveSigExpOp iBas sigexp)
   | FUNCTORexp(modexp,sigexp,_) =>
       (resolveModExpOp iBas modexp;resolveSigExpOp iBas sigexp)
+  | PRIMexp _ => ()
 
 and resolveMRuleOp iBas (MRule(ref pats,exp)) =
   (app (resolvePatOp iBas) pats; resolveExpOp iBas exp)

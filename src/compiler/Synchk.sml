@@ -66,10 +66,11 @@ fun compliantExp (loc, exp') =
       (complianceMsg loc "<atexp> ::= [structure <modexp> as <sigexp>]"; 
        compliantModExp modexp;
        compliantSigExp sigexp)
-  | FUNCTORexp(modexp,sigexp,_) => 
-      (complianceMsg loc "<atexp> ::= [functor <modexp> as <sigexp>]"; 
+  | FUNCTORexp(modexp,sigexp,_) =>
+      (complianceMsg loc "<atexp> ::= [functor <modexp> as <sigexp>]";
        compliantModExp modexp;
        compliantSigExp sigexp)
+  | PRIMexp _ => ()
 and compliantMRule (MRule(ref pats, exp)) =
     (app compliantPat pats;compliantExp exp)
 and compliantPat (_, pat') =

@@ -260,6 +260,7 @@ fun unguardedExp (_, exp') =
   | INFIXexp (ref (RESinfixexp e)) => unguardedExp e
   | TYPEDexp(exp, ty) =>
       unguardedExp exp U unguardedTy ty
+  | PRIMexp(_, ty) => unguardedTy ty
   | ANDALSOexp(exp1, exp2) =>
       unguardedExp exp1 U unguardedExp exp2
   | ORELSEexp(exp1, exp2) =>
@@ -526,6 +527,7 @@ fun isExpansiveExp (_, exp') =
   | VIDPATHexp (ref (OVLvidpath (_,ovlty,ty))) => false
   | PARexp exp      => isExpansiveExp exp
   | TYPEDexp(exp,_) => isExpansiveExp exp
+  | PRIMexp _       => false
   | FNexp _         => false
   | RECexp (ref (RECre exprow))    => 
 	exists (fn (_, e) => isExpansiveExp e) exprow
@@ -2147,6 +2149,10 @@ fun elabExp (ME:ModEnv) (FE:FunEnv) (GE:SigEnv) (UE : UEnv) (VE : VarEnv) (TE : 
        elabMatch ME FE GE UE VE TE mrules (type_arrow type_exn exp_t))
   | RAISEexp e =>
       elabExp ME FE GE  UE VE TE e type_exn
+  | PRIMexp(name, ty) =>
+      let val ty_t = elabTy ME FE GE UE VE TE ty in
+        unifyExp exp exp_t ty_t
+      end
   | IFexp(e0, e1, e2) =>
       (elabExp ME FE GE UE VE TE e0 type_bool;
        elabExp ME FE GE UE VE TE e1 exp_t;

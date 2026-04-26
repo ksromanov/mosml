@@ -62,6 +62,7 @@ List.app (fn (str,tok) => Hasht.insert keyword_table str tok)
   ("prim_EQtype",  PRIM_REFTYPE),
   ("prim_type",    PRIM_TYPE),
   ("prim_val",     PRIM_VAL),
+  ("_prim",        UNDER_PRIM),
   ("raise",        RAISE),
   ("rec",          REC),
   ("sharing",      SHARING),
@@ -307,11 +308,13 @@ and TokenN = parse
           RPAREN
       }
   | ";"         { SEMICOLON }
+  | "_prim"     { UNDER_PRIM }
   | (eof | `\^Z`) { EOF }
   | ""          { if !quotation then TokenIdQ lexbuf else TokenId lexbuf }
 
 and TokenId = parse
-    ( [`A`-`Z` `a`-`z`] [ `A`-`Z` `a`-`z` `0`-`9` `_` `'`]*
+    "_prim" { UNDER_PRIM }
+  | ( [`A`-`Z` `a`-`z`] [ `A`-`Z` `a`-`z` `0`-`9` `_` `'`]*
     | [`!` `%` `&` `$` `#` `+` `-` `/` `:` `<` `=` `>` `?` `@` `\\`
        `~` `\`` `^` `|` `*`]+ )
       { mkKeyword lexbuf }
@@ -327,7 +330,8 @@ and TokenId = parse
       { lexError "ill-formed token" lexbuf }
 
 and TokenIdQ = parse
-    ( [`A`-`Z` `a`-`z`] [ `A`-`Z` `a`-`z` `0`-`9` `_` `'`]*
+    "_prim" { UNDER_PRIM }
+  | ( [`A`-`Z` `a`-`z`] [ `A`-`Z` `a`-`z` `0`-`9` `_` `'`]*
     | [`!` `%` `&` `$` `#` `+` `-` `/` `:` `<` `=` `>` `?` `@` `\\`
        `~` `^` `|` `*`]+ )
       { mkKeyword lexbuf }
