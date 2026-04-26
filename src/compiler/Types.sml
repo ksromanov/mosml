@@ -1384,6 +1384,12 @@ val matchExModRef =
     end;
 
 
+(* True if (a,p) is string and (b,q) is a vector whose element normalizes to char. *)
+fun isStrCharVec a p b q =
+  null a andalso (case p of NAMEtyapp t => isEqTN t tyname_string | _ => false) andalso
+  (case b of [arg] => (case normType arg of CONt([], NAMEtyapp t) => isEqTN t tyname_char | _ => false) | _ => false) andalso
+  (case q of NAMEtyapp t => isEqTN t tyname_vector | _ => false)
+
 fun unify (tau1: Type) (tau2: Type) =
   let val tau1' = normType tau1
       and tau2' = normType tau2
@@ -1412,7 +1418,8 @@ fun unify (tau1: Type) (tau2: Type) =
       | (ARROWt(a,b), ARROWt(a',b')) =>
           (unify a a'; unify b b')
       | (CONt(ts, tyapp), CONt(ts', tyapp')) =>
-          if not ((kindTyApp tyapp) = (kindTyApp tyapp')) then raise Unify UnifyOther
+          if isStrCharVec ts tyapp ts' tyapp' orelse isStrCharVec ts' tyapp' ts tyapp then ()
+          else if not ((kindTyApp tyapp) = (kindTyApp tyapp')) then raise Unify UnifyOther
           else (unifyTyApp tyapp tyapp';unifySeq ts ts')
       | (RECt r, RECt r') =>
           if r = r' then () else
