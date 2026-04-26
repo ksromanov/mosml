@@ -43,7 +43,7 @@ CC=gcc
 
 # To compile the runtime system camlrunm with support for
 # dynamically loadable libraries (DDLs), set DYNLIBSUPPORT to true
-DYNLIBSUPPORT=true
+DYNLIBSUPPORT=false
 
 ifeq ($(DYNLIBSUPPORT),true)
   ADDPRIMS=dynlib.c

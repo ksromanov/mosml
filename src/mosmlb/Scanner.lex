@@ -199,16 +199,16 @@ rule Lexer = parse
   | "_prim" { PRIM }
   | id { ID (getLexeme lexbuf)}
 
-  | filePath".fun" { PATH (Mlb.FUNFile, (getLexeme lexbuf)) }
+  | filePath".fun" { PATH (Mlb.FUNFile, (substitutePathVars (getLexeme lexbuf))) }
   | quotedFunPath { PATH (Mlb.FUNFile, (unquotePath (getLexeme lexbuf))) }
 
-  | filePath".mlb" { PATH (Mlb.MLBFile, (getLexeme lexbuf)) }
+  | filePath".mlb" { PATH (Mlb.MLBFile, (substitutePathVars (getLexeme lexbuf))) }
   | quotedMlbPath { PATH (Mlb.MLBFile, (unquotePath (getLexeme lexbuf))) }
 
-  | filePath".sig" { PATH (Mlb.SIGFile, (getLexeme lexbuf)) }
+  | filePath".sig" { PATH (Mlb.SIGFile, (substitutePathVars (getLexeme lexbuf))) }
   | quotedSigPath { PATH (Mlb.SIGFile, (unquotePath (getLexeme lexbuf))) }
 
-  | filePath".sml" { PATH (Mlb.SMLFile, (getLexeme lexbuf)) }
+  | filePath".sml" { PATH (Mlb.SMLFile, (substitutePathVars (getLexeme lexbuf))) }
   | quotedSmlPath { PATH (Mlb.SMLFile, (unquotePath (getLexeme lexbuf))) }
 
   (* Perhaps quoted paths will conflict with quoted strings, so, we do not include general quoted path *)
