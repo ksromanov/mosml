@@ -278,8 +278,32 @@ and evalBasdec (scope: scope) (st: state) (dec: basDec) : scope =
             result
         end
 
-      (* _prim — no-op for Moscow ML *)
-    | Prim => scope
+      (* _prim — compile the primitive type shim *)
+    | Prim =>
+        let
+            (* Find prim-shim.sml relative to the mosmlb executable *)
+            val shimFile = Path.concat (Path.dir (CommandLine.name ()), "prim-shim.sml")
+            val shimFile = if OS.FileSys.access (shimFile, [OS.FileSys.A_READ])
+                           then shimFile
+                           else "prim-shim.sml"
+        in
+            if OS.FileSys.access (shimFile, [OS.FileSys.A_READ])
+            then let
+                (* Compile the shim without rootDir resolution — it's an absolute/local path *)
+                val absShim = OS.FileSys.fullPath shimFile
+                val _ = Log.debug 1 ("_prim: compiling shim " ^ absShim)
+                val cmd = compileCmd scope st absShim
+                val _ = Log.debug 2 ("Command: " ^ cmd)
+                val ok = OS.Process.isSuccess (OS.Process.system cmd)
+                val _ = if ok then () else Log.debug 1 "_prim: shim compilation failed"
+                val uiPath = uiPathOf absShim
+                val uoPath = uoPathOf absShim
+                val _ = (#allUo st) := !(#allUo st) @ [uoPath]
+            in
+                addBinding scope { name = unitName absShim, uiPath = uiPath, kind = StrKind }
+            end
+            else (Log.debug 1 "_prim: no shim file found, skipping"; scope)
+        end
 
 and evalBasexp (scope: scope) (st: state) (basexp: basExp) : scope =
     case basexp of
