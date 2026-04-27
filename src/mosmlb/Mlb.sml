@@ -57,7 +57,7 @@ val pathVariables = ref
      ("SEQUENCE_METADATA_SIZE", "size128"),
      ("NORMAL_METADATA_SIZE", "size64"),
      ("DEFAULT_CHAR", "char8"),
-     ("DEFAULT_WIDECHAR", "widechar"),
+     ("DEFAULT_WIDECHAR", "widechar32"),
      ("DEFAULT_INT", "int32"),
      ("DEFAULT_REAL", "real64"),
      ("DEFAULT_WORD", "word32")]
