@@ -316,6 +316,7 @@ and TokenN = parse
   | "_symbol"              { UNDER_SYMBOL }
   | "_address"             { UNDER_ADDRESS }
   | "_const"               { UNDER_CONST }
+  | "_overload"            { SkipOverload lexbuf; SEMICOLON }
   | (eof | `\^Z`) { EOF }
   | ""          { if !quotation then TokenIdQ lexbuf else TokenId lexbuf }
 
@@ -386,13 +387,11 @@ and String = parse
           store_string_char(Char.chr code);
           String lexbuf
         end }
-  | "\\u" [`0`-`9``a`-`f``A`-`F`] [`0`-`9``a`-`f``A`-`F`] 
+  | "\\u" [`0`-`9``a`-`f``A`-`F`] [`0`-`9``a`-`f``A`-`F`]
           [`0`-`9``a`-`f``A`-`F`] [`0`-`9``a`-`f``A`-`F`]
       { let val code = charCodeOfHexadecimal lexbuf 1 in
-          if code >= 256 then
-            skipString "character code is too large" SkipString lexbuf
-          else ();
-          store_string_char(Char.chr code);
+          (* Clamp codes > 255 to 255: char16/char32 are aliased to int anyway *)
+          store_string_char(Char.chr (if code >= 256 then 255 else code));
           String lexbuf
         end }
   | `\\`
@@ -472,6 +471,11 @@ and AntiQuotation = parse
       { 
         skipString "ill-formed antiquotation" SkipQuotation lexbuf
       }
+
+and SkipOverload = parse
+    (* _overload blocks end at a blank line or EOF *)
+    "\n\n" | (eof | `\^Z`) { () }
+  | _ { SkipOverload lexbuf }
 ;
 
 
