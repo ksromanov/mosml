@@ -3,6 +3,8 @@ exception EndOfFile;
 exception LexicalError of string * int * int;
 
 val toplevel : bool ref;
+val skipSigSmlCheck : bool ref;
+val noStampCheck : bool ref;
 
 val pp_out : ppstream;
 val msgCBlock : int -> unit; (* Begins a CONSISTENT block. *)

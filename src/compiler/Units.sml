@@ -129,9 +129,12 @@ fun readSig name =
   end;
 *)
 fun readSig filename =
-  let 
+  let
       val name = normalizedUnitName(Filename.basename filename)
-      val filename = find_in_path (filename ^ ".ui")
+      val filename =
+          find_in_path (filename ^ ".ui")
+          handle Fail _ =>
+            find_in_path (String.map Char.toLower filename ^ ".ui")
       val is = open_in_bin filename
   in
     let
@@ -142,7 +145,7 @@ fun readSig filename =
     in
       close_in is;
       uStamp := SOME sigStamp;
-      if name <> uName then (
+      if String.map Char.toLower name <> String.map Char.toLower uName then (
         msgIBlock 0;
         errPrompt "File "; msgString filename;
         msgString " contains the signature of unit ";
@@ -185,6 +188,20 @@ fun findPervSig uname =
 
 (* To find a signature by its name *)
 
+(* Search all loaded units for one whose uModEnv contains structName.
+ * Returns the CSig of that unit if found, NONE otherwise. *)
+fun findSigByStructName structName =
+  Hasht.fold (fn _ => fn cu => fn acc =>
+       case acc of
+         SOME _ => acc
+       | NONE =>
+           if modeOfSig cu = TOPDECmode then
+             ((ignore(Hasht.find (#uModEnv cu) structName); SOME cu)
+              handle Subscript => NONE)
+           else NONE)
+    NONE (!currentSigTable)
+;
+
 fun findSig loc uname =
   Hasht.find pervSigTable uname
   handle Subscript =>
@@ -197,8 +214,13 @@ fun findSig loc uname =
                            " before it has been loaded."))
         else ();
         let val cu =
-          readSig uname
-            handle Fail msg => errorMsg loc msg
+          (readSig uname
+           handle Fail _ =>
+             (* If file not found, search loaded TOPDECmode units for one
+              * whose uModEnv contains this structure name *)
+             case findSigByStructName uname of
+               SOME cu => cu
+             | NONE => errorMsg loc ("Cannot find file " ^ uname ^ ".ui"))
         in
           Hasht.insert (!currentSigTable) uname cu; cu
         end))

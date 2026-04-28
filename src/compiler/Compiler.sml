@@ -492,20 +492,22 @@ fun compileAndEmit context uname uident umode filename specSig_opt elab decs =
 fun compileUnitBody context uname umode filename =
   let val filename_sig = filename ^ ".sig"
       val filename_ui  = filename ^ ".ui"
-      val filename_sml = filename ^ ".sml"
+      val filename_sml = if file_exists (filename ^ ".sml") then filename ^ ".sml"
+                         else if file_exists (filename ^ ".fun") then filename ^ ".fun"
+                         else filename ^ ".sml"
       val is = open_in_bin filename_sml
       val lexbuf = createLexerStream is
-      fun compileStruct (AnonStruct decs) = 
+      fun compileStruct (AnonStruct decs) =
 	  (* cvr: TODO warn *)
-	  if file_exists filename_sig then
+	  if file_exists filename_sig andalso not (!skipSigSmlCheck) then
 	      (checkExists filename_ui filename_sig filename_sml;
 	       compileAndEmit context uname uname umode filename (SOME (readSig uname)) elabStrDec decs)
-	  else 
+	  else
 	      (remove_file filename_ui;
 	       compileAndEmit context uname uname umode filename NONE elabStrDec decs)
 	| compileStruct (NamedStruct{locstrid as (_,strid), locsigid = NONE, decs}) =
 	  (checkUnitId "structure" locstrid uname;
-	   checkNotExists filename_sig filename_sml;
+	   if not (!skipSigSmlCheck) then checkNotExists filename_sig filename_sml else ();
 	   remove_file filename_ui;
 	   compileAndEmit context uname strid umode filename NONE elabStrDec decs)
 	 (* cvr: TODO remove locsigid field from NamedStruct *)
@@ -516,11 +518,11 @@ fun compileUnitBody context uname umode filename =
 	   checkExists filename_ui filename_sig filename_sml;
 	   compileAndEmit context uname strid umode filename (SOME (readSig uname)) elabStrDec decs
 )
-	| compileStruct (TopDecs decs) = 
-	  if file_exists filename_sig then
+	| compileStruct (TopDecs decs) =
+	  if file_exists filename_sig andalso not (!skipSigSmlCheck) then
 	      (checkExists filename_ui filename_sig filename_sml;
 	       compileAndEmit context uname "" umode  filename (SOME (readSig uname)) elabToplevelDec decs)
-	  else 
+	  else
 	      (remove_file filename_ui;
 	       compileAndEmit context uname "" umode filename NONE elabToplevelDec decs)
   in

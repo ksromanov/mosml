@@ -33,7 +33,8 @@ fun check_file name stampOpt pending processed =
       val uname = normalizedUnitName(Filename.basename simplename)
       val () =
 	  if member uname pending then
-	      raise Fail ("Unit " ^ name ^ " depends on itself")
+	      if !noStampCheck then raise WrongStamp
+	      else raise Fail ("Unit " ^ name ^ " depends on itself")
 	  else ()
       val () =
 	  if member uname reservedUnitNames then
@@ -44,20 +45,23 @@ fun check_file name stampOpt pending processed =
 	            handle Subscript => NONE 
 
       fun needs subuname substamp processed =
-	  (check_file (subuname ^ ".uo") (SOME substamp) 
+	  (check_file (subuname ^ ".uo") (SOME substamp)
 	              (uname :: pending) processed)
-	  handle WrongStamp => 
-	              raise Fail ("Compiled body of unit " ^ uname 
+	  handle WrongStamp =>
+	              if !noStampCheck then processed
+	              else raise Fail ("Compiled body of unit " ^ uname
 				    ^ " is incompatible with unit "^ subuname)
-	       | NotYet => 
-		      raise Fail ("Unit " ^ subuname ^ " is mentioned by "
+	       | NotYet =>
+		      if !noStampCheck then processed
+		      else raise Fail ("Unit " ^ subuname ^ " is mentioned by "
 				  ^ uname ^ " but not yet linked")
-  in 
+  in
       case already of
 	  SOME stamp' =>
 	      (case stampOpt of
-		   SOME stamp => 
-		       if stamp <> stamp' then raise WrongStamp 
+		   SOME stamp =>
+		       if stamp <> stamp' andalso not (!noStampCheck)
+		       then raise WrongStamp
 		       else processed
 		 | NONE => 
                        (msgIBlock 0;
@@ -71,14 +75,15 @@ fun check_file name stampOpt pending processed =
 		          case stampOpt of 
 			      NONE       => read_file name
 			    | SOME stamp => 
-				  if !autolink then 
-				      let val res as (_, tables) = 
+				  if !autolink then
+				      let val res as (_, tables) =
 					  read_file name
-				      in 
-					  if stamp = #cu_sig_stamp tables then
+				      in
+					  if stamp = #cu_sig_stamp tables
+					     orelse !noStampCheck then
 					      res
 					  else
-					      raise WrongStamp 
+					      raise WrongStamp
 				      end
 				  else
 				      raise NotYet 

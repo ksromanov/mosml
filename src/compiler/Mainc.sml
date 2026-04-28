@@ -19,6 +19,13 @@ fun compileFile (context,s,mode) =
 	  mode
           filename
       end
+    else if Filename.check_suffix s ".fun" then
+      let val filename = Filename.chop_suffix s ".fun" in
+        compileUnitBody context
+          (normalizedUnitName (Filename.basename filename))
+          mode
+          filename
+      end
     else
       raise (Fail "unknown file name extension")
   end
@@ -159,7 +166,8 @@ fun main () =
              ("-toplevel",  Arg.Unit topdec_mode),
              ("-orthodox",  Arg.Unit orthodox),
              ("-conservative",  Arg.Unit conservative),
-             ("-liberal",  Arg.Unit liberal)
+             ("-liberal",  Arg.Unit liberal),
+             ("-skipsigsml", Arg.Unit (fn () => skipSigSmlCheck := true))
              ]
     anonymous;
   if !path_library <> "" then

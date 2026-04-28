@@ -3,8 +3,8 @@
  * Compiled automatically when _prim is encountered in an .mlb file. *)
 
 type char8 = char
-type char16 = int
-type char32 = int
+type char16 = char
+type char32 = char
 
 type int1 = int   type int2 = int   type int3 = int   type int4 = int
 type int5 = int   type int6 = int   type int7 = int   type int8 = int

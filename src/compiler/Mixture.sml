@@ -6,6 +6,18 @@ exception LexicalError of string * int * int;
 
 val toplevel = ref false;
 
+(* When true, skip the check that foo.sig must exist before foo.sml.
+ * Used by mosmlb which drives compilation programmatically with its
+ * own context management, so MLton-style .sig/.sml pairs do not need
+ * to follow Moscow ML's interface-constraint convention. *)
+val skipSigSmlCheck = ref false;
+
+(* When true, the linker ignores stamp mismatches between .uo files.
+ * Used by mosmlb for full builds where the same source is compiled
+ * multiple times with progressively richer contexts, producing
+ * different stamps but compatible type representations. *)
+val noStampCheck = ref false;
+
 val pp_out = mk_ppstream
 {
   linewidth = 79,

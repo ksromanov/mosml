@@ -635,10 +635,30 @@ fun findLongModIdForOpen ME loc q =
 		  else
 		      let val cu = findAndMentionStrSig loc i (* cvr: REVIEW maybe findAndMention? *)
 		      in
+			  if modeOfSig cu = TOPDECmode then
+			      (let val {qualid,info=RS} = Hasht.find (#uModEnv cu) i
+				   val S = SofRecStr RS
+			       in
+				   ([],{qualid = qualid,
+					info = (MEofStr S,
+						FEofStr S,
+						NILenv,
+						VEofStr S,
+						TEofStr S)})
+			       end
+			       handle Subscript =>
+			       ([],{qualid = {qual = i,id = []},
+				    info = (bindTopInEnv NILenv (#uModEnv cu),
+					    bindTopInEnv NILenv (#uFunEnv cu),
+					    bindTopInEnv NILenv (#uSigEnv cu),
+					    bindTopInEnv NILenv (#uVarEnv cu),
+					    bindTopInEnv NILenv (#uTyEnv cu))
+				    }))
+			  else
 			  ([],{qualid = {qual = i,id = []},
-			       info = (bindTopInEnv NILenv (#uModEnv cu), 
-				       bindTopInEnv NILenv (#uFunEnv cu), 
-				       bindTopInEnv NILenv (#uSigEnv cu), 
+			       info = (bindTopInEnv NILenv (#uModEnv cu),
+				       bindTopInEnv NILenv (#uFunEnv cu),
+				       bindTopInEnv NILenv (#uSigEnv cu),
 				       bindTopInEnv NILenv (#uVarEnv cu),
 				       bindTopInEnv NILenv (#uTyEnv cu))
 			       })
@@ -673,12 +693,28 @@ and findLongModId ME loc q =
 		  else
 		      let val cu = findAndMentionStrSig loc i
 		      in
+			  (* For TOPDECmode units, if a structure with the same
+			   * name exists inside the unit, use its RecStr directly.
+			   * This lets -toplevel compiled units expose their
+			   * structures correctly when referenced by name. *)
+			  if modeOfSig cu = TOPDECmode then
+			      ([], Hasht.find (#uModEnv cu) i)
+			      handle Subscript =>
+			      ([],{qualid = {qual = i,id = []},
+				   info =
+				     NONrec  (STRstr(bindTopInEnv NILenv (#uModEnv cu),
+						 bindTopInEnv NILenv (#uFunEnv cu),
+						 bindTopInEnv NILenv (#uSigEnv cu),
+						 bindTopInEnv NILenv (#uTyEnv cu),
+						 bindTopInEnv NILenv (#uVarEnv cu)))
+				   })
+			  else
 			  ([],{qualid = {qual = i,id = []},
 			       info =
-			         NONrec  (STRstr(bindTopInEnv NILenv (#uModEnv cu), 
-					     bindTopInEnv NILenv (#uFunEnv cu), 
-					     bindTopInEnv NILenv (#uSigEnv cu), 
-					     bindTopInEnv NILenv (#uTyEnv cu), 
+			         NONrec  (STRstr(bindTopInEnv NILenv (#uModEnv cu),
+					     bindTopInEnv NILenv (#uFunEnv cu),
+					     bindTopInEnv NILenv (#uSigEnv cu),
+					     bindTopInEnv NILenv (#uTyEnv cu),
 					     bindTopInEnv NILenv (#uVarEnv cu)))
 			       })
 		      end
