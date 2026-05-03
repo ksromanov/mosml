@@ -37,6 +37,7 @@ app use
  "weak.sml",				(* MOSML *)
  "word.sml",
  "word32.sml",
+ "word64.sml",
  "word8.sml",
  "word8array.sml",
  "word8arrayslice.sml",
