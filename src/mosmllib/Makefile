@@ -13,7 +13,7 @@ all: Array.uo Array2.uo ArraySlice.uo Arraysort.uo \
      CharVector.uo CharVectorSlice.uo CommandLine.uo \
      Date.uo Dynarray.uo Dynlib.uo \
      FileSys.uo Gdbm.uo Gdimage.uo Hashset.uo Help.uo \
-     Int.uo Int32.uo Intmap.uo Intset.uo IO.uo \
+     Int.uo Int32.uo Int64.uo Intmap.uo Intset.uo IO.uo \
      Lexing.uo List.uo ListPair.uo Listsort.uo Location.uo \
      Math.uo Misc.uo Mosml.uo Mosmlcgi.uo Mosmlcookie.uo Msp.uo Mysql.uo \
      NJ93.uo Nonstdio.uo \
@@ -138,6 +138,8 @@ PackRealBig.uo: PackRealBig.ui Word8Array.ui Word8ArraySlice.ui \
 Int.ui: StringCvt.ui
 Int32.ui: StringCvt.ui
 Int32.uo: Int32.ui String.ui StringCvt.ui Char.ui Int.ui
+Int64.ui: StringCvt.ui Int.ui
+Int64.uo: Int64.ui String.ui StringCvt.ui Char.ui Int.ui
 ArraySlice.uo: ArraySlice.ui Vector.ui Array.ui VectorSlice.ui 
 Array2.uo: Array2.ui List.ui Vector.ui Array.ui VectorSlice.ui \
     ArraySlice.ui 

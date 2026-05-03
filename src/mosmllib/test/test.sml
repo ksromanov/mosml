@@ -15,6 +15,7 @@ app use
  "general.sml",
  "int.sml",
  "int32.sml",
+ "int64.sml",
  "list.sml",
  "listpair.sml",
  "listsort.sml",			(* MOSML *)
