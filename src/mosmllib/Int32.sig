@@ -1,46 +1,46 @@
-(* Int32 -- 32-bit signed integers for Moscow ML
-   Based on the SML Basis Library INTEGER signature *)
+(* Int32 -- SML Basis Library *)
 
 type int = int
 
-val precision : Int.int option
-val minInt    : int option
-val maxInt    : int option
+val precision  : Int.int option
+val minInt     : int option
+val maxInt     : int option
 
-val ~         : int -> int              (* Overflow      *)
-val *         : int * int -> int        (* Overflow      *)
-val div       : int * int -> int        (* Div, Overflow *)
-val mod       : int * int -> int        (* Div           *)
-val quot      : int * int -> int        (* Div, Overflow *)
-val rem       : int * int -> int        (* Div           *)
-val +         : int * int -> int        (* Overflow      *)
-val -         : int * int -> int        (* Overflow      *)
-val >         : int * int -> bool
-val >=        : int * int -> bool
-val <         : int * int -> bool
-val <=        : int * int -> bool
-val abs       : int -> int              (* Overflow      *)
-val min       : int * int -> int
-val max       : int * int -> int
+val ~          : int -> int             (* Overflow      *)
+val *          : int * int -> int       (* Overflow      *)
+val div        : int * int -> int       (* Div, Overflow *)
+val mod        : int * int -> int       (* Div           *)
+val quot       : int * int -> int       (* Div, Overflow *)
+val rem        : int * int -> int       (* Div           *)
+val +          : int * int -> int       (* Overflow      *)
+val -          : int * int -> int       (* Overflow      *)
+val >          : int * int -> bool
+val >=         : int * int -> bool
+val <          : int * int -> bool
+val <=         : int * int -> bool
+val abs        : int -> int             (* Overflow      *)
+val min        : int * int -> int
+val max        : int * int -> int
 
-val sign      : int -> Int.int
-val sameSign  : int * int -> bool
-val compare   : int * int -> order
+val sign       : int -> Int.int
+val sameSign   : int * int -> bool
+val compare    : int * int -> order
 
-val toInt     : int -> Int.int
-val fromInt   : Int.int -> int
-val toLarge   : int -> Int.int
-val fromLarge : Int.int -> int
+val toInt      : int -> Int.int
+val fromInt    : Int.int -> int
+val toLarge    : int -> Int.int
+val fromLarge  : Int.int -> int
 
-val scan      : StringCvt.radix
-                -> (char, 'a) StringCvt.reader -> (int, 'a) StringCvt.reader
-val fmt       : StringCvt.radix -> int -> string
+val scan       : StringCvt.radix
+                 -> (char, 'a) StringCvt.reader -> (int, 'a) StringCvt.reader
+val fmt        : StringCvt.radix -> int -> string
 
-val toString  : int -> string
+val toString   : int -> string
 val fromString : string -> int option   (* Overflow      *)
 
 (*
-   [precision] is SOME 32.
+   [precision] is SOME 32, the number of significant bits in a 32-bit
+   integer, including the sign bit.
 
    [minInt] is SOME ~2147483648.
 
@@ -49,8 +49,8 @@ val fromString : string -> int option   (* Overflow      *)
    [~]
    [*]
    [+]
-   [-] are the usual operations on 32-bit integers.  They raise
-   Overflow if the result is not representable as a 32-bit integer.
+   [-] are the usual operations on integers.  They raise Overflow if
+   the result is not representable as a 32-bit integer.
 
    [abs] returns the absolute value of its argument.  Raises Overflow
    if applied to ~2147483648.

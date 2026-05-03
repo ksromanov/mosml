@@ -14,6 +14,7 @@ app use
  "filesys.sml",
  "general.sml",
  "int.sml",
+ "int32.sml",
  "list.sml",
  "listpair.sml",
  "listsort.sml",			(* MOSML *)
