@@ -25,7 +25,7 @@ all: Array.uo Array2.uo ArraySlice.uo Arraysort.uo \
      Strbase.uo String.uo StringCvt.uo Substring.uo Susp.uo \
      TextIO.uo Time.uo Timer.uo \
      Unix.uo Vector.uo VectorSlice.uo \
-     Weak.uo Word.uo Word8.uo Word8Array.uo Word8ArraySlice.uo \
+     Weak.uo Word.uo Word8.uo Word32.uo Word8Array.uo Word8ArraySlice.uo \
      Word8Vector.uo Word8VectorSlice.uo
 
 # Make with the current compiler
@@ -199,7 +199,9 @@ Arraysort.uo: Arraysort.ui Array.ui
 Callback.uo: Callback.ui Polyhash.ui 
 Mosml.ui: Word8Vector.ui 
 Lexing.ui: CharArray.ui Obj.uo 
-Word.uo: Word.ui String.ui StringCvt.ui Char.ui 
+Word.uo: Word.ui String.ui StringCvt.ui Char.ui
+Word32.ui: Word.ui StringCvt.ui
+Word32.uo: Word32.ui Word.ui String.ui StringCvt.ui Char.ui
 CharArray.ui: CharVector.ui Char.ui 
 Nonstdio.uo: Nonstdio.ui BasicIO.ui CharArray.ui 
 Misc.uo: Misc.ui String.ui List.ui Option.ui Vector.ui Array.ui TextIO.ui \
