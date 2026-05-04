@@ -1912,11 +1912,12 @@ fun setTags (cbs : ConBind list) =
 				else ())
                         rest (* cvr: should this check go elsewhere ? *)
                 val () =
-                  if n > maxBlockTag then
+                  if List.length (List.filter (fn ConBind(_, SOME _) => true | _ => false) cbs)                                                                                        
+                     > maxBlockTag then
                     errorMsg idLoc ("Implementation restriction:\n \
                                     \A datatype cannot declare more than "^
 				    string_of_int (maxBlockTag + 1) ^
-				    " constructors.")
+				    " non-constant constructors.")
                   else ();
                 val ci = mkConInfo() 
                 val q = mkGlobalName id
