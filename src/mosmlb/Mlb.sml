@@ -42,7 +42,7 @@ datatype basDec = Basis of basBind list | Local of (basDec list)*(basDec list)
  * openbsd, hpux, aix. For MosML TARGET_ARCH=linux.
  *)
 val pathVariables = ref
-    [("SML_LIB","/workarea/mlton/sml-lib"),
+    [("SML_LIB","/workarea/mlkit/src/build_mosml/sml_lib"),
      ("HOME_PATH","/home"),
      ("TARGET_ARCH", "bytecode"),
      ("TARGET_OS", "linux"),
