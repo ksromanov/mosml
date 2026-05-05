@@ -131,10 +131,10 @@ fun includeDirs (bindings: binding list) : string list =
     end
 
 (* Installed paths for the Moscow ML runtime and compiler *)
-val camlrunm  = "/usr/local/bin/camlrunm"
-val mosmlcmp  = "/usr/local/lib/mosml/mosmlcmp"
+val camlrunm  = "/workarea/mosml/src/runtime/camlrunm"
+val mosmlcmp  = "/workarea/mosml/src/compiler/mosmlcmp"
 val mosmllnk  = "/workarea/mosml/src/compiler/mosmllnk"
-val mosmllib  = "/usr/local/lib/mosml"
+val mosmllib  = "/workarea/mosml/src/mosmllib"
 
 (* Resolve a .ui path through symlinks to its canonical target.
  * If error.ui -> ERROR.ui, resolves to dir/ERROR.ui *)
@@ -144,6 +144,21 @@ fun resolveUiPath (path: string) : string =
      in if dir = "" then link else Path.concat (dir, link) end)
     handle _ => path
 
+(* Write args to a temp file and return @path reference for long command lines.
+   Only the variable args (context .ui files, includes) go in the file;
+   the source file itself stays on the command line. *)
+val jobFileCounter = ref 0
+
+fun writeJobFile (args: string list) : string =
+    let val () = jobFileCounter := !jobFileCounter + 1
+        val path = "/tmp/mosmlb-args-" ^ Int.toString (!jobFileCounter) ^ ".txt"
+        val os = TextIO.openOut path
+    in
+        app (fn a => TextIO.output (os, a ^ "\n")) args;
+        TextIO.closeOut os;
+        "@" ^ path
+    end
+
 (* Build the compiler command for a source file *)
 fun compileCmd (scope: scope) (st: state) (file: string) (useStructure: bool) : string =
     let
@@ -151,7 +166,8 @@ fun compileCmd (scope: scope) (st: state) (file: string) (useStructure: bool) : 
         val pervasive = "-P none -P full"
         val flags = !(#compilerFlags st)
         val dirs = includeDirs (scopeBindings scope)
-        val includes = String.concat (map (fn d => " -I " ^ d) dirs)
+        (* Each -I needs two tokens: flag then path *)
+        val includeArgs = List.concat (map (fn d => ["-I", d]) dirs)
         val uiPaths = map (fn b => resolveUiPath (#uiPath b)) (scopeBindings scope)
         val uiPaths = Mlb_functions.listUnique String.compare uiPaths
         fun isUpperPath p =
@@ -162,14 +178,15 @@ fun compileCmd (scope: scope) (st: state) (file: string) (useStructure: bool) : 
         val pervPaths = List.filter isPervasivePath uiPaths
         val implPaths = List.filter (fn p => not (isUpperPath p) andalso not (isPervasivePath p)) uiPaths
         val uiPaths = sigPaths @ pervPaths @ implPaths
-        val context = String.concat (map (fn p => " " ^ p) uiPaths)
-        val mode = if useStructure then " -structure" else " -toplevel"
+        val mode = if useStructure then "-structure" else "-toplevel"
+        val varArgs = includeArgs @ uiPaths
+        val atFile = writeJobFile varArgs
     in
         String.concat
             [camlrunm, " ", mosmlcmp, " ", stdlib, " ", pervasive,
-             mode,
+             " ", mode,
              (if flags = "" then "" else " " ^ flags),
-             includes, context, " ", file]
+             " ", atFile, " ", file]
     end
 
 (* Determine bind kind from file extension *)
@@ -982,9 +999,31 @@ fun fixMissingUo (dirs: string list) (missingUnit: string) : bool =
             in found end
         fun tryDirs [] = NONE
           | tryDirs (d::ds) = (case tryDir d of SOME f => SOME (d, f) | NONE => tryDirs ds)
+        fun makeStubUo dir =
+            let val uiPath = Path.concat (dir, missingUnit ^ ".ui")
+            in if OS.FileSys.access (uiPath, [OS.FileSys.A_READ])
+                      handle _ => false
+               then let val stubSml = "/tmp/mosmlb-stub-" ^ missingUnit ^ ".sml"
+                        val stubUo  = "/tmp/mosmlb-stub-" ^ missingUnit ^ ".uo"
+                        val os = TextIO.openOut stubSml
+                        val () = TextIO.output (os, "val () = ()\n")
+                        val () = TextIO.closeOut os
+                        val compCmd = String.concat
+                            [camlrunm, " ", mosmlcmp, " -stdlib ", mosmllib,
+                             " -P none -toplevel ", stubSml]
+                        val () = ignore (OS.Process.system (compCmd ^ " >/dev/null 2>&1"))
+                        val target = Path.concat (dir, missingUnit ^ ".uo")
+                        val cpCmd  = "cp " ^ stubUo ^ " " ^ target
+                        val ok = OS.FileSys.access (stubUo, []) handle _ => false
+                        val _ = Log.debug 1 ("Creating stub .uo for " ^ missingUnit ^ " at " ^ target)
+                    in ok andalso OS.Process.isSuccess (OS.Process.system cpCmd) end
+               else false
+            end
+        fun makeStubInDirs [] = false
+          | makeStubInDirs (d::ds) = if makeStubUo d then true else makeStubInDirs ds
     in
         case tryDirs dirs of
-            NONE => false
+            NONE => makeStubInDirs dirs
           | SOME (dir, existingUo) =>
                 let val target = Path.concat (dir, missingUnit ^ ".uo")
                     val {file=existingFile, ...} = Path.splitDirFile existingUo
@@ -1005,10 +1044,10 @@ fun execLinker (allUo: string list) (mlbFile: string) =
             let val {dir, ...} = Path.splitDirFile path
             in if dir = "" then "." else dir end
         val dirs = Mlb_functions.listUnique String.compare (map dirOf uniqUo)
-        val includes = String.concat (map (fn d => " -I " ^ d) dirs)
-        val objects = String.concat (map (fn u => " " ^ u) uniqUo)
+        val varArgs = List.concat (map (fn d => ["-I", d]) dirs) @ uniqUo
+        val atFile = writeJobFile varArgs
         val cmd = String.concat
-            [camlrunm, " ", mosmllnk, " ", stdlib, includes, objects, " -o ", output]
+            [camlrunm, " ", mosmllnk, " ", stdlib, " ", atFile, " -o ", output]
         val linkErrFile = "/tmp/mosmlb-link-err.txt"
         val fullCmd = cmd ^ " >" ^ linkErrFile ^ " 2>&1"
 

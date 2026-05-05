@@ -45,6 +45,37 @@ fun listOfVector v =
   List.tabulate(Vector.length v, fn i => Vector.sub(v, i))
 ;
 
+fun stripLineEnd s =
+  let val n = size s
+      val n = if n > 0 andalso CharVector.sub(s, n-1) = #"\n" then n-1 else n
+      val n = if n > 0 andalso CharVector.sub(s, n-1) = #"\r" then n-1 else n
+  in String.substring(s, 0, n) end;
+
+fun readArgsFile path =
+  let val is = open_in path
+      fun loop acc =
+        let val line = stripLineEnd (input_line is)
+                       handle End_of_file => ""
+        in if line = "" then List.rev acc
+           else loop (line :: acc)
+        end
+      val args = loop [] handle e => (close_in is; raise e)
+  in close_in is; args end;
+
+fun expandAtArgs args =
+  let fun expand [] acc = List.rev acc
+        | expand (s::rest) acc =
+            if size s >= 2 andalso CharVector.sub(s, 0) = #"@"
+            then let val fileArgs =
+                       readArgsFile (String.substring(s, 1, size s - 1))
+                       handle SysErr (msg, _) =>
+                         (output(std_err, "Cannot read argument file: " ^ msg ^ "\n");
+                          flush_out std_err; exit 2)
+                 in expand rest (List.revAppend (fileArgs, acc))
+                 end
+            else expand rest (s :: acc)
+  in expand args [] end;
+
 fun parse speclist anonfun =
   let fun p [] = ()
         | p (s::t) =
@@ -78,6 +109,6 @@ fun parse speclist anonfun =
   in
     case listOfVector Miscsys.command_line of
         [] => ()
-      | a::l => p l
+      | a::l => p (expandAtArgs l)
   end;
 
