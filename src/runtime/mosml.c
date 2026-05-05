@@ -38,6 +38,15 @@
 #include "globals.h"
 #include "mosml.h"
 
+/* Hook for Final_tag equality (used by intinf dynlib) */
+static void (*s_final_tag_finalizer)(value) = NULL;
+static int  (*s_final_tag_equal)(value, value) = NULL;
+
+void register_final_equal(void (*finalizer)(value), int (*eq_fn)(value, value)) {
+    s_final_tag_finalizer = finalizer;
+    s_final_tag_equal     = eq_fn;
+}
+
 /* SunOS 4 appears not to have mktime: */
 #if defined(sun) && !defined(__svr4__)
 #define tm2cal(tptr)	timelocal(tptr)
@@ -85,7 +94,12 @@ static int sml_equal_aux(value v1, value v2)
     return (Double_val(v1) == Double_val(v2));
   case Reference_tag:  /* Different reference cells are not equal! */
   case Abstract_tag:
+    return 0;
   case Final_tag:
+    if (s_final_tag_equal != NULL
+        && (void (*)(value))Field(v1, 0) == s_final_tag_finalizer
+        && (void (*)(value))Field(v2, 0) == s_final_tag_finalizer)
+      return s_final_tag_equal(v1, v2);
     return 0;
   case Closure_tag:
     invalid_argument("sml_equal: functional value");

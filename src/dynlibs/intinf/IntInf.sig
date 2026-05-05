@@ -1,7 +1,7 @@
 (* LargeInt -- arbitrary-precision integers 1995-09-04, 1998-04-12     *)
 (* This module requires Dynlib and the GNU GMP package to be installed *)
 
-type int
+eqtype int
 
 val precision : int option
 val minInt    : int option

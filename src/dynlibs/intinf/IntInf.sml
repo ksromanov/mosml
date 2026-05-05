@@ -2,7 +2,7 @@
 
 exception Domain
 
-prim_type int;
+prim_eqtype int;
 type largeint = int;
 
 (* Interfacing to the C functions that call the GNU GMP library: *)
@@ -67,6 +67,11 @@ val largeint_set_str : largeint -> string -> Int.int -> unit
     = app3 (dlsym dlh "largeint_set_str")
 val largeint_pow_ui  : largeint -> largeint -> Int.int -> unit
     = app3 (dlsym dlh "largeint_pow_ui")
+
+val largeint_register_equal : unit -> unit
+    = app1 (dlsym dlh "largeint_register_equal")
+
+val _ = largeint_register_equal ()
 end
 
 val onepos = largeint_make_si 1

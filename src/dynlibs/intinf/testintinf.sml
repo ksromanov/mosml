@@ -172,7 +172,7 @@ val test17b =
 	    "+ 1", "~ 1", "- 1"];
 
 val test18 =
-    check'(fn _ => 
+    check'(fn _ =>
 	   toInt(pow(fromInt 12, 3)) = 1728
 	   andalso toInt(pow(fromInt  0 ,  1)) = 0
 	   andalso toInt(pow(fromInt  1 ,  0)) = 1
@@ -181,6 +181,21 @@ val test18 =
 	   andalso toInt(pow(fromInt ~1 , ~1)) = ~1
 	   andalso toInt(pow(fromInt  2 , ~1)) = 0
 	   andalso toInt(pow(fromInt ~2 , ~1)) = 0)
+
+val test19a = check'(fn _ => fromInt 42 = fromInt 42);
+val test19b = check'(fn _ => not (fromInt 42 = fromInt 99));
+val test19c = check'(fn _ => fromInt 0 = fromInt 0);
+val test19d = check'(fn _ => fromInt ~1 = fromInt ~1);
+val test19e = check'(fn _ => not (fromInt 1 = fromInt ~1));
+
+val test20a = check'(fn _ => pow(fromInt 2, 100) = pow(fromInt 2, 100));
+val test20b = check'(fn _ => not (pow(fromInt 2, 100) = pow(fromInt 2, 99)));
+val test20c = check'(fn _ =>
+    let val x = pow(fromInt 2, 200) in x = x end);
+
+val test21a = check'(fn _ => fromInt 42 <> fromInt 99);
+val test21b = check'(fn _ => not (fromInt 42 <> fromInt 42));
+
 end;
 
 val _ = quit();

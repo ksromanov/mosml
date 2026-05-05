@@ -87,6 +87,18 @@ void largeint_finalize(value obj)
   mpz_clear(mpint);
 }
 
+static int largeint_equal_cmp(value li1, value li2) {
+  if (li1 == li2) return 1;
+  return mpz_cmp(Large_val(li1), Large_val(li2)) == 0;
+}
+
+extern void register_final_equal(void (*finalizer)(value), int (*eq_fn)(value, value));
+
+value largeint_register_equal(value unit) {
+  register_final_equal(largeint_finalize, largeint_equal_cmp);
+  return Val_unit;
+}
+
 /* When the largeint becomes unreachable from the ML process, it will
    be garbage-collected, largeint_finalize() will be called on the
    pointer to the MP_INT struct to deallocate the limbs, and finally
