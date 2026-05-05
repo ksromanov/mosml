@@ -4,6 +4,33 @@ open List Obj BasicIO Nonstdio Fnlib Mixture Const Globals Location Units;
 open Types Smlperv Asynt Parser Ovlres Infixres Elab Sigmtch;
 open Tr_env Front Back Pr_zam Emit_phr;
 
+val wtBuf : token option ref = ref NONE
+val wtSeen = ref false
+
+(* Helper function to support chained where construct from SML 97.
+   It rewrites where keyword with and keyword. *)
+fun wrappedToken lexbuf =
+  case !wtBuf of
+    SOME tok => (wtBuf := NONE; tok)
+  | NONE =>
+    let val tok = Lexer.Token lexbuf in
+      case tok of
+        WHERE =>
+          (case Lexer.Token lexbuf of
+              TYPE => if !wtSeen then (wtBuf := SOME TYPE; AND)
+                      else (wtSeen := true; wtBuf := SOME TYPE; WHERE)
+            | next => (wtBuf := SOME next; tok))
+      | SEMICOLON => (wtSeen := false; tok)
+      | EOF       => (wtSeen := false; tok)
+      | END       => (wtSeen := false; tok)
+      | SIGNATURE => (wtSeen := false; tok)
+      | STRUCTURE => (wtSeen := false; tok)
+      | FUNCTOR   => (wtSeen := false; tok)
+      | INCLUDE   => (wtSeen := false; tok)
+      | IN        => (wtSeen := false; tok)
+      | _ => tok
+    end
+
 (* Lexer of stream *)
 
 fun createLexerStream (is : BasicIO.instream) =
@@ -57,31 +84,33 @@ fun parsePhrase parsingFun lexingFun lexbuf =
 fun parsePhraseAndClear parsingFun lexingFun lexbuf =
   let val phr =
     parsePhrase parsingFun lexingFun lexbuf
-    handle x => (Lexer.resetLexerState(); Parsing.clearParser(); raise x)
+    handle x => (Lexer.resetLexerState(); Parsing.clearParser();
+                 wtSeen := false; wtBuf := NONE; raise x)
   in
     Lexer.resetLexerState();
     Parsing.clearParser();
+    wtSeen := false; wtBuf := NONE;
     phr
   end;
 
 val parseToplevelPhrase =
-  parsePhraseAndClear Parser.ToplevelPhrase Lexer.Token
+  parsePhraseAndClear Parser.ToplevelPhrase wrappedToken
 ;
 
 val parseStructFile = fn umode => fn lexbuff =>
     case umode of
       STRmode =>
-	    parsePhraseAndClear Parser.StructFile Lexer.Token lexbuff
-    | TOPDECmode => 
-	    parsePhraseAndClear Parser.TopDecFile Lexer.Token lexbuff
+	    parsePhraseAndClear Parser.StructFile wrappedToken lexbuff
+    | TOPDECmode =>
+	    parsePhraseAndClear Parser.TopDecFile wrappedToken lexbuff
 ;
 
 val parseSigFile = fn umode => fn lexbuff =>
     case umode of
       STRmode =>
-	  parsePhraseAndClear Parser.SigFile Lexer.Token lexbuff
-    | TOPDECmode => 
-	  parsePhraseAndClear Parser.TopSpecFile Lexer.Token lexbuff
+	  parsePhraseAndClear Parser.SigFile wrappedToken lexbuff
+    | TOPDECmode =>
+	  parsePhraseAndClear Parser.TopSpecFile wrappedToken lexbuff
 ;
 
 fun isInTable key tbl =
