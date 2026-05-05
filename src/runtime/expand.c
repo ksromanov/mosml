@@ -325,12 +325,11 @@ int buildrealmap(bytecode_t byteprog, int code_size, int realaddress[])
       pc += LONG; realsize++;
       break;
 
-    /* A one-byte argument and a table of four-byte signed (label) arguments */
-    /* We keep the byte argument for consistency.                           */
+    /* A four-byte argument and a table of four-byte signed (label) arguments */
     Instruct(SWITCH):
       {
-	int n = *pc;
-	pc++; realsize++;		/* The byte     */
+	int n = s32(pc);
+	pc += LONG; realsize++;		/* The 32-bit count */
 	pc += n * LONG; realsize += n;	/* The n labels */
       }
       break;
@@ -643,15 +642,15 @@ realcode_t expandcode(bytecode_t byteprog, int code_size, void * jumptable[])
       realprog[codeptr++] = (void*)(unsigned long)u32pc; pc += LONG;
       break;
 
-    /* A one-byte argument and a table of four-byte signed (label) arguments. */
-    /* We keep the byte argument for consistency.                            */
+    /* A four-byte argument and a table of four-byte signed (label) arguments. */
     Instruct(SWITCH):
       {
 	unsigned long i, n;
 	bytecode_t pc1;
-	realprog[codeptr++] = jumptable[*pc++]; 
-	n = (unsigned long)*pc++;
-	realprog[codeptr++] = (void*)n; 
+	realprog[codeptr++] = jumptable[*pc++];
+	n = (unsigned long)s32(pc);
+	pc += LONG;
+	realprog[codeptr++] = (void*)n;
 	pc1 = pc;
 	for (i=0; i<n; i++) {
 	  realprog[codeptr++] = REALADDR(pc1, s32pc);

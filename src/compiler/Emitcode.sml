@@ -166,10 +166,9 @@ fun emit_zam zam =
     | Kswitch lblvect =>
         let val len = Array.length lblvect
             val ()  = out SWITCH;
-            val ()  = out len;
+            val ()  = out_long len;
             val orig = !out_position
         in
-	    checkBranches len;
 	    for (fn i => out_label_with_orig orig (Array.sub(lblvect, i)))
 	        0 (len-1)
         end

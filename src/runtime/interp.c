@@ -1050,9 +1050,8 @@ EXTERN value interprete(int mode, bytecode_t bprog, int code_size, CODE* rprog)
       if (Tag_val(accu) != u8pci) branch(); else pc += LONG;
       Next;
     Instruct(SWITCH):
-      Assert(Long_val(accu) >= 0 && Long_val(accu) < *pc);
-      pc++;
-      //      printf("SWITCH: JUMPSWITCHINDEX(pc, %d) = %d\n", accu, JUMPSWITCHINDEX(pc, accu));
+      Assert(Long_val(accu) >= 0 && Long_val(accu) < s32pc);
+      pc += LONG;
       pc = JUMPSWITCHINDEX(pc, accu);
       Next;
     Instruct(BOOLNOT):
