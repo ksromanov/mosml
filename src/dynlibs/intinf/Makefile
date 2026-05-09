@@ -6,8 +6,8 @@
 # Where to find GMP header file and compiled library
 
 #GMPDIR=${HOME}/c/gmp-2.0.2
-GMPINCDIR=/usr/local/include
-GMPLIBDIR=/usr/local/lib
+GMPINCDIR=/opt/bb/include
+GMPLIBDIR=/opt/bb/lib64
 
 include ../../Makefile.inc
 

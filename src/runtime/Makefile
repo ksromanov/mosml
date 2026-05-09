@@ -133,6 +133,7 @@ dynlib.o: dynlib.c mlvalues.h config.h ../config/m.h ../config/s.h \
 extern.o: extern.c debugger.h misc.h config.h ../config/m.h \
  ../config/s.h mlvalues.h fail.h gc.h intext.h io.h memory.h \
  major_gc.h freelist.h minor_gc.h
+	$(CC) -c $(CFLAGS) -fno-tree-vectorize -o $@ $<
 externcp.o: externcp.c debugger.h misc.h config.h ../config/m.h \
  ../config/s.h mlvalues.h fail.h gc.h intext.h io.h memory.h \
  major_gc.h freelist.h minor_gc.h reverse.h str.h

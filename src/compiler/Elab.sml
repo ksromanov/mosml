@@ -3041,13 +3041,10 @@ and elabSigExp (ME:ModEnv) (FE:FunEnv) (GE:SigEnv) (UE:UEnv) (VE:VarEnv) (TE:TyE
 				    end					
 			      | _ => raise IllFormed))
 		  handle IllFormed =>
-		      (msgIBlock 0;
-		       errLocation loc;
-		       errPrompt "Illegal where constraint: the type constructor ";printQualId qualid;msgEOL();
-		       errPrompt "is specified as a datatype"; msgEOL();
-		       errPrompt "but its constraint is not a datatype";msgEOL();
-		       msgEBlock();
-		       raise Toplevel));
+		      (* MLKit/MLton use 'where type T = T' on datatype specs to share
+		       * types across structure boundaries; allow this as a valid
+		       * constraint (treat the datatype as abstract for sharing). *)
+		      ());
 		 LAMBDAsig(remove tn T,STRmod RS) 
 	      end)
    | RECsigexp ((_,modid),sigexp as (locforward,_),sigexp' as (locbody,_)) =>

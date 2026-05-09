@@ -55,6 +55,13 @@ fun check_file name stampOpt pending processed =
 		      if !noStampCheck then processed
 		      else raise Fail ("Unit " ^ subuname ^ " is mentioned by "
 				  ^ uname ^ " but not yet linked")
+	       | Fail msg =>
+		      if !autolink then
+			  (* Silently skip missing .uo for signature-only units.
+			   * Record as already seen so subsequent references don't retry. *)
+			  (Hasht.insert (!watchDog) subuname substamp;
+			   processed)
+		      else raise Fail msg
   in
       case already of
 	  SOME stamp' =>

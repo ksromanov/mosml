@@ -1,8 +1,13 @@
+#include <stdio.h>
+#include <string.h>
 /* Structured output, fast format */
 
 #include "debugger.h"
 #include "fail.h"
 #include "gc.h"
+#include "major_gc.h"
+#include "minor_gc.h"
+
 #include "intext.h"
 #include "io.h"
 #include "memory.h"
@@ -66,6 +71,10 @@ static byteoffset_t emit(v)
   if (Is_long(v)) return (byteoffset_t) v;
   size = Wosize_val(v);
   if (size == 0) return (Tag_val(v) << 2) + 2;
+  /* Skip blocks not in the GC heap or young gen — static/code-segment
+   * pointers have garbage "headers" that look like huge block sizes,
+   * causing reads into unmapped memory near page boundaries. */
+  if (!Is_in_heap(Hp_val(v)) && !Is_young(v)) return (byteoffset_t) v;
   if (2 * extern_table_used >= extern_table_size) resize_extern_table();
   h = Hash(v);
   while (extern_table[h].obj != 0) {
@@ -81,8 +90,14 @@ static byteoffset_t emit(v)
   extern_table[h].obj = v;
   extern_table[h].ofs = res;
   extern_table_used++;
-  for (p = &Field(v, 0), q = &extern_block[extern_pos]; size > 0; size--) {
-    *q++ = *p++;
+  { /* Strict word-by-word copy to avoid SIMD reads past block boundary.
+     * The GC heap/young-gen may end exactly at a page boundary, and SIMD
+     * instructions (via memmove/memcpy) can read ahead into unmapped pages.
+     * Using volatile src prevents the compiler from vectorizing this loop. */
+    volatile value * src = (volatile value *)&Field(v, 0);
+    byteoffset_t * dst = &extern_block[extern_pos];
+    mlsize_t i;
+    for (i = 0; i < size; i++) dst[i] = src[i];
   }
   extern_pos = end_pos;
   return res;

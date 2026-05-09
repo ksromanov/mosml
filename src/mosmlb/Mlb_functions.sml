@@ -164,7 +164,7 @@ fun loadMlbFileTree file =
             if Path.isAbsolute path then
                 path
             else
-                Path.mkCanonical 
+                Path.mkCanonical
                     (Path.concat ((Path.dir (hd (!pathStack))), path))
 
         (* Check if file is already in pathStack. Returns NONE if
@@ -195,7 +195,7 @@ fun loadMlbFileTree file =
             (
                 Log.debug 1 ("Included " ^ file);
                 ((Mlb.LoadedMLBFile (loadSingleMLBFile file)), file)
-                handle OS.SysErr _ => 
+                handle OS.SysErr _ =>
                 (
                     Log.error (Log.FileNotRead file);
                     ((Mlb.FailedMLBFile Mlb.ReadFailure), file)

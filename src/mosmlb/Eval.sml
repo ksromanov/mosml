@@ -251,13 +251,35 @@ fun extractDeclName (srcFile: string) : string option =
         val _ = TextIO.closeIn ins handle _ => ()
     in result end
 
-(* For a .sig/.fun file, determine the file to actually compile and the .ui path.
- * If the declared signature/functor name differs from the file base name,
- * we compile a symlink named SIGNAME.sig so that mosmlcmp embeds the right
- * unit name in the produced .ui file. *)
+(* For a .sig file, determine the file to actually compile and the .ui path.
+ * If the declared signature name differs from the file basename (e.g.
+ * bitstream.sig declares BITSTREAM), we compile a temporary symlink
+ * SIGNAME.sig -> bitstream.sig so that mosmlcmp writes SIGNAME.ui.
+ * This avoids a namespace collision with bitstream.ui which is produced
+ * when bitstream.sml is compiled later. *)
 fun resolveCompileTarget (ft: includedFileType) (absFile: string)
     : { compileFile: string, uiPath: string } =
-    { compileFile = absFile, uiPath = uiPathOf absFile }
+    if ft <> SIGFile then
+        { compileFile = absFile, uiPath = uiPathOf absFile }
+    else
+        let val {dir, file} = Path.splitDirFile absFile
+            val {base = fileBase, ...} = Path.splitBaseExt absFile
+        in case extractDeclName absFile of
+             NONE => { compileFile = absFile, uiPath = uiPathOf absFile }
+           | SOME declName =>
+               let val sigAlias =
+                       if dir = "" then declName ^ ".sig"
+                       else dir ^ "/" ^ declName ^ ".sig"
+               in if declName = fileBase orelse sigAlias = absFile then
+                   { compileFile = absFile, uiPath = uiPathOf absFile }
+               else
+                   (ignore (OS.Process.system
+                           ("ln -sf " ^ file ^ " " ^ sigAlias));
+                    { compileFile = sigAlias,
+                      uiPath = if dir = "" then declName ^ ".ui"
+                               else dir ^ "/" ^ declName ^ ".ui" })
+               end
+        end
 
 (* For a .sml file, check if the unit name (basename) conflicts with an
  * already-compiled unit in the scope. If so, create a dir__basename.sml
@@ -447,18 +469,53 @@ fun compileSource (scope: scope) (st: state) (ft: includedFileType, file: string
                          (uiPath = uiPathOf compileFile
                           orelse isSome (getSeq (uiPathOf compileFile)))
 
-        (* If there's a paired .sig file, we need to handle the Moscow ML
-         * auto-pairing issue. Strategy: temporarily hide the .sig and
-         * prepend its content to the .sml. This gives the .sml access
-         * to the signatures while avoiding the auto-pairing. *)
-        val pairedSigPath =
-            if ft = SMLFile then
+        (* If there's a paired .sig file, we may need to handle the Moscow ML
+         * auto-pairing issue. If the .sig was already compiled (its .ui exists),
+         * mosml will auto-pair them correctly and no prepending is needed.
+         * Only prepend when the .sig has NOT been compiled yet. *)
+        (* Check if a .sig file is a standalone signature definition (starts
+         * with 'signature' keyword), as opposed to a module interface. *)
+        fun isSigDefFile (sigPath: string) : bool =
+            (let val ins = TextIO.openIn sigPath
+                 fun loop () =
+                     case TextIO.inputLine ins of
+                       NONE => false
+                     | SOME line =>
+                         let val s = Substring.dropl Char.isSpace (Substring.full line)
+                         in if Substring.isPrefix "(*" s then
+                                (* skip to end of comment, then continue *)
+                                let fun skipComment () =
+                                        case TextIO.inputLine ins of
+                                          NONE => false
+                                        | SOME l =>
+                                            if String.isSubstring "*)" l
+                                            then loop ()
+                                            else skipComment ()
+                                in skipComment () end
+                            else if Substring.isEmpty s then loop ()
+                            else Substring.isPrefix "signature " s
+                         end
+                 val result = loop ()
+                 val _ = TextIO.closeIn ins
+             in result end)
+            handle _ => false
+
+        (* Compute whether the paired .sig (if any) should be hidden during
+         * this .sml compilation.  We defer the ACTUAL hiding until we know
+         * we are going to compile (not up-to-date), so we never hide a .sig
+         * and then fail to restore it because the file was skipped. *)
+        fun pairedSigInfo () =
+            if ft <> SMLFile then NONE
+            else
                 let val {base, ...} = Path.splitBaseExt compileFile
                     val sigPath = base ^ ".sig"
                 in if OS.FileSys.access (sigPath, [OS.FileSys.A_READ])
                        handle _ => false
-                   then SOME sigPath else NONE end
-            else NONE
+                   then SOME (sigPath, isSigDefFile sigPath,
+                               OS.FileSys.access (base ^ ".ui", [OS.FileSys.A_READ])
+                               handle _ => false)
+                   else NONE end
+
         (* Check if the .sml defines a functor (starts with "functor").
          * Functor files should not be concatenated with their .sig. *)
         fun smlStartsWithFunctor (path: string) : bool =
@@ -482,27 +539,43 @@ fun compileSource (scope: scope) (st: state) (ft: includedFileType, file: string
                  val _ = TextIO.closeIn ins
              in result end)
             handle _ => false
-        val (actualCompileFile, sigHidden) =
-            case pairedSigPath of
+
+        (* Hide the paired .sig and prepare the compile file.
+         * Returns (actualCompileFile, sigHidden). Called only when compiling. *)
+        fun hideSigAndPrepare () =
+            case pairedSigInfo () of
                 NONE => (compileFile, false)
-              | SOME sigPath =>
-                    (* Concatenate .sig + separator + .sml and hide original .sig *)
-                    let val bakSml = compileFile ^ ".orig"
-                        val bakSig = sigPath ^ ".bak"
-                        val cmd = "cp " ^ compileFile ^ " " ^ bakSml
-                                  ^ " && { cat " ^ sigPath ^ "; echo ''; echo ';'; cat " ^ bakSml ^ "; } > " ^ compileFile
-                                  ^ " && mv " ^ sigPath ^ " " ^ bakSig
-                        val _ = ignore (OS.Process.system cmd)
-                    in (compileFile, true) end
+              | SOME (sigPath, sigIsDef, uiExists) =>
+                    let val bakSig = sigPath ^ ".bak"
+                    in if sigIsDef orelse uiExists then
+                           (ignore (OS.Process.system ("mv " ^ sigPath ^ " " ^ bakSig));
+                            (compileFile, true))
+                       else
+                           let val bakSml = compileFile ^ ".orig"
+                               val cmd = "cp " ^ compileFile ^ " " ^ bakSml
+                                         ^ " && { cat " ^ sigPath ^ "; echo ''; echo ';'; cat " ^ bakSml ^ "; } > " ^ compileFile
+                                         ^ " && mv " ^ sigPath ^ " " ^ bakSig
+                               val _ = ignore (OS.Process.system cmd)
+                           in (compileFile, true) end
+                    end
 
         fun doCompile (retries: int) : binding =
             let
+                (* Hide paired .sig NOW (deferred from outer scope so we only
+                 * do this when actually compiling, not on upToDate skip). *)
+                val (actualCompileFile, sigHidden) = hideSigAndPrepare ()
                 (* Filter out self-referential bindings AND any SigKind
                  * bindings whose uiPath is the .sig source path (not
                  * compiled) so they don't pollute the context *)
                 val filteredScope = Scope {
+                      (* Self-referential filter: remove the binding that THIS
+                       * compilation will produce (by actual output file name).
+                       * Use uiPathOf(compileFile) — the file that mosmlcmp will
+                       * actually write — not the sig-resolved uiPath, which may
+                       * point to a separately-compiled SIGNAME.ui that must stay
+                       * visible in the context (e.g. BITSTREAM.ui for bitstream.sml). *)
                       bindings = List.filter
-                          (fn b => #uiPath b <> uiPath
+                          (fn b => #uiPath b <> uiPathOf compileFile
                                    andalso not (#kind b = SigKind
                                                 andalso not (String.isSuffix ".ui" (#uiPath b))))
                           (scopeBindings scope),
@@ -517,9 +590,13 @@ fun compileSource (scope: scope) (st: state) (ft: includedFileType, file: string
                             let val bakSml = compileFile ^ ".orig"
                                 val {base, ...} = Path.splitBaseExt compileFile
                                 val bakSig = base ^ ".sig.bak"
+                                (* Restore .sml if it was modified (concat case) *)
+                                val _ = if OS.FileSys.access (bakSml, []) handle _ => false
+                                        then ignore (OS.Process.system
+                                                 ("mv " ^ bakSml ^ " " ^ compileFile))
+                                        else ()
                             in ignore (OS.Process.system
-                                 ("mv " ^ bakSml ^ " " ^ compileFile
-                                  ^ " && mv " ^ bakSig ^ " " ^ base ^ ".sig"))
+                                 ("mv " ^ bakSig ^ " " ^ base ^ ".sig"))
                             end
                         else ()
             in
@@ -529,8 +606,13 @@ fun compileSource (scope: scope) (st: state) (ft: includedFileType, file: string
                         val _ = if ft <> SIGFile then
                                     (#allUo st) := !(#allUo st) @ [uo]
                                 else ()
-                        (* No symlinks for .sig files — we use _SIG suffix to
-                         * avoid conflicts with paired .sml files *)
+                        (* Remove the temporary SIGNAME.sig symlink used to produce
+                         * SIGNAME.ui; keep only the .ui output. *)
+                        val _ = if ft = SIGFile andalso compileFile <> absFile then
+                                    ignore (OS.Process.system ("rm -f " ^ compileFile))
+                                else ()
+                        (* .sig files don't produce .uo; the patched linker
+                         * silently skips missing .uo for autolinked units. *)
                         val newSeq = !(#compileSeq st) + 1
                         val _ = (#compileSeq st) := newSeq
                         (* For .sml files with a sig alias, the .sml's own .ui
@@ -602,22 +684,11 @@ and evalBasdec (scope: scope) (st: state) (dec: basDec) : scope =
       (* Source file: compile with current scope as context *)
       Path (ft as SMLFile, file) => addBinding scope (compileSource scope st (ft, file))
     | Path (ft as SIGFile, file) =>
-        let val absFile = resolvePath st file
-            val {base, ...} = Path.splitBaseExt absFile
-            val pairedSml = base ^ ".sml"
-            val hasPairedSml = OS.FileSys.access (pairedSml, []) handle _ => false
-        in
-            if hasPairedSml then
-                (* Skip: the .sml compilation will prepend this .sig *)
-                let val bindingName = unitName absFile
-                in addBinding scope { name = bindingName,
-                                      uiPath = absFile,
-                                      kind = SigKind }
-                end
-            else
-                (* No paired .sml — compile normally *)
-                addBinding scope (compileSource scope st (ft, file))
-        end
+        (* Always compile .sig files so their .ui is available for subsequent
+         * files in the MLB (even if there is a paired .sml later in the list).
+         * The paired .sml compilation will detect the existing .ui and skip
+         * the sig-prepend step. *)
+        addBinding scope (compileSource scope st (ft, file))
     | Path (ft as FUNFile, file) => addBinding scope (compileSource scope st (ft, file))
 
       (* Loaded MLB file: evaluate its declarations in the .mlb's directory context *)
@@ -1024,12 +1095,24 @@ fun fixMissingUo (dirs: string list) (missingUnit: string) : bool =
     in
         case tryDirs dirs of
             NONE => makeStubInDirs dirs
-          | SOME (dir, existingUo) =>
-                let val target = Path.concat (dir, missingUnit ^ ".uo")
-                    val {file=existingFile, ...} = Path.splitDirFile existingUo
-                    val cmd = "ln -sf " ^ existingFile ^ " " ^ target
-                    val _ = Log.debug 1 ("Creating .uo symlink: " ^ target ^ " -> " ^ existingFile)
-                in OS.Process.isSuccess (OS.Process.system cmd) end
+          | SOME (dir, _) =>
+                (* Create a proper stub .uo with the correct unit name,
+                 * not a symlink to the implementation .uo — symlinks cause
+                 * circular dependency cascades in the linker. *)
+                let val stubSml = "/tmp/" ^ missingUnit ^ ".sml"
+                    val stubUo  = "/tmp/" ^ missingUnit ^ ".uo"
+                    val target  = Path.concat (dir, missingUnit ^ ".uo")
+                    val os = TextIO.openOut stubSml
+                    val () = TextIO.output (os, "val () = ()\n")
+                    val () = TextIO.closeOut os
+                    val compCmd = String.concat
+                        [camlrunm, " ", mosmlcmp, " -stdlib ", mosmllib,
+                         " -P none -toplevel ", stubSml]
+                    val () = ignore (OS.Process.system (compCmd ^ " >/dev/null 2>&1"))
+                    val ok = OS.FileSys.access (stubUo, []) handle _ => false
+                    val _ = Log.debug 1 ("Creating stub .uo: " ^ target)
+                in ok andalso OS.Process.isSuccess (OS.Process.system
+                        ("cp " ^ stubUo ^ " " ^ target)) end
     end
 
 fun execLinker (allUo: string list) (mlbFile: string) =
@@ -1044,6 +1127,17 @@ fun execLinker (allUo: string list) (mlbFile: string) =
             let val {dir, ...} = Path.splitDirFile path
             in if dir = "" then "." else dir end
         val dirs = Mlb_functions.listUnique String.compare (map dirOf uniqUo)
+
+        (* Pre-link: for every .ui without a .uo in any -I dir, create a
+         * symlink to the case-insensitive matching .uo, then INSERT the
+         * alias into the .uo list right after the matching implementation.
+         * This ensures the linker processes aliases at the right position
+         * in its left-to-right pass, avoiding on-demand -I lookups. *)
+        fun normalize s = String.implode (List.filter
+                (fn c => c <> #"_" andalso c <> #"-")
+                (String.explode (String.map Char.toLower s)))
+        (* .sig files now produce .uo via .sml symlinks, so no stub
+         * creation is needed. *)
         val varArgs = List.concat (map (fn d => ["-I", d]) dirs) @ uniqUo
         val atFile = writeJobFile varArgs
         val cmd = String.concat
@@ -1051,25 +1145,32 @@ fun execLinker (allUo: string list) (mlbFile: string) =
         val linkErrFile = "/tmp/mosmlb-link-err.txt"
         val fullCmd = cmd ^ " >" ^ linkErrFile ^ " 2>&1"
 
-        fun tryLink () =
+        fun tryLink (retries: int) =
             (Log.debug 1 ("Linking: " ^ cmd);
              if OS.Process.isSuccess (OS.Process.system fullCmd) then
                  Log.debug 1 ("Linked " ^ output)
-             else
+             else if retries > 0 then
                  let val errMsg = readAllText linkErrFile
                  in
                      case findMissingUo errMsg of
                          SOME missingUnit =>
                              if fixMissingUo dirs missingUnit then
                                  (Log.debug 1 ("Fixed missing .uo for " ^ missingUnit ^ ", retrying link");
-                                  tryLink ())
+                                  tryLink (retries - 1))
                              else
-                                 Log.debug 1 ("Link skipped (non-fatal): " ^ errMsg)
+                                 (Log.debug 1 ("Link failed: " ^ errMsg);
+                                  Log.error (Log.FileNotRead output))
                        | NONE =>
-                             Log.debug 1 ("Link skipped (non-fatal): " ^ errMsg)
+                             (Log.debug 1 ("Link failed: " ^ errMsg);
+                              Log.error (Log.FileNotRead output))
+                 end
+             else
+                 let val errMsg = readAllText linkErrFile
+                 in Log.debug 1 ("Link failed after retries: " ^ errMsg);
+                    Log.error (Log.FileNotRead output)
                  end)
     in
-        tryLink ()
+        tryLink 50
     end
 
 fun evalProgram (mlbFile: string) (parseTree: basDec list) =
