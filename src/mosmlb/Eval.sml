@@ -1120,7 +1120,7 @@ fun execLinker (allUo: string list) (mlbFile: string) =
         val output = case !(Options.execFile) of
                        SOME f => f
                      | NONE => Path.base mlbFile
-        val stdlib = "-stdlib " ^ mosmllib ^ " -P none -P full -noheader -nostampcheck"
+        val stdlib = "-stdlib " ^ mosmllib ^ " -P none -P full -noheader"
         val uniqUo = Mlb_functions.listUnique String.compare allUo
         (* Compute -I paths from .uo file directories *)
         fun dirOf path =

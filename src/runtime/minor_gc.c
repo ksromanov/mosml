@@ -82,8 +82,12 @@ static void oldify (value *p, value v)
     if (Is_blue_val (v)){    /* Already forwarded ? */
       *p = Field (v, 0);     /* Then the forward pointer is the first field. */
     }else if (Tag_val (v) >= No_scan_tag){
-      result = alloc_shr (Wosize_val (v), Tag_val (v));
-      bcopy (Bp_val (v), Bp_val (result), Bosize_val (v));
+      { mlsize_t sz = Wosize_val (v);
+        mlsize_t i;
+        result = alloc_shr (sz, Tag_val (v));
+        /* Word-by-word copy to avoid SIMD reads past block end (AVX issue) */
+        for (i = 0; i < sz; i++) Field(result, i) = Field(v, i);
+      }
       Hd_val (v) = Bluehd_hd (Hd_val (v));    /* Put the forward flag. */
       Field (v, 0) = result;                  /* And the forward pointer. */
       *p = result;
@@ -116,6 +120,8 @@ static void oldify (value *p, value v)
   }
 }
 
+int in_minor_collection = 0;
+
 void minor_collection(void)
 {
   value **r;
@@ -132,8 +138,10 @@ void minor_collection(void)
   beg_gc_time();
 
   gc_message ("<", 0);
+  in_minor_collection = 1;
   local_roots (oldify);
   for (r = ref_table; r < ref_table_ptr; r++) oldify (*r, **r);
+  in_minor_collection = 0;
   stat_minor_words += Wsize_bsize (young_ptr - young_start);
   young_ptr = young_start;
   ref_table_ptr = ref_table;

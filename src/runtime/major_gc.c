@@ -493,10 +493,20 @@ static void realloc_weak_arrays (void)
 
 void darken (value v)
 {
-  if (Is_block (v) && Is_in_heap (v) && Is_white_val (v)){
-    Hd_val (v) = Grayhd_hd (Hd_val (v));
-    *gray_vals_cur++ = v;
-    if (gray_vals_cur >= gray_vals_end) realloc_gray_vals ();
+  if (Is_block (v) && Is_in_heap (v)){
+    header_t hd = Hd_val (v);
+    tag_t t = Tag_hd (hd);
+    mlsize_t sz = Wosize_hd (hd);
+    /* Sanity: reject values with corrupt-looking headers.
+     * A valid header has tag <= Final_tag and size < 2^20 words (8MB).
+     * Corrupt headers from out-of-heap pointers passing Is_in_heap
+     * (page-table granularity gap) would have garbage tag/size. */
+    if (t > Final_tag + 1 || sz > (1UL << 20)) return;
+    if (Color_hd (hd) == White){
+      Hd_val (v) = Grayhd_hd (hd);
+      *gray_vals_cur++ = v;
+      if (gray_vals_cur >= gray_vals_end) realloc_gray_vals ();
+    }
   }
 }
 

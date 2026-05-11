@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <setjmp.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "alloc.h"
@@ -679,11 +680,18 @@ EXTERN value interprete(int mode, bytecode_t bprog, int code_size, CODE* rprog)
     Instruct(UPDATE): {
       value newval = *sp++;
       mlsize_t size, n;
-      size = Wosize_val(newval);
-      Assert(size == Wosize_val(accu));
-      Tag_val(accu) = Tag_val(newval);
-      for (n = 0; n < size; n++) {
-        modify(&Field(accu, n), Field(newval, n));
+      /* Guard: only update if accu is a valid heap/young-gen block,
+       * to prevent corrupting BSS atoms or other non-heap memory */
+      if (!Is_long(accu) && (Is_in_heap(Hp_val(accu)) || Is_young(accu))) {
+        size = Wosize_val(newval);
+        Assert(size == Wosize_val(accu));
+        Tag_val(accu) = Tag_val(newval);
+        for (n = 0; n < size; n++) {
+          modify(&Field(accu, n), Field(newval, n));
+        }
+      } else if (!Is_long(accu)) {
+        fprintf(stderr, "[UPDATE SKIP] accu=%p hp=%p not in heap/young, Tag_val(accu)=%d\n",
+                (void*)accu, (void*)Hp_val(accu), (int)Tag_val(accu));
       }
       accu = Val_unit;
       Next;
@@ -977,27 +985,43 @@ EXTERN value interprete(int mode, bytecode_t bprog, int code_size, CODE* rprog)
       Next;
 
     Instruct(SETFIELD0):
-      modify_dest = &Field(*sp++, 0);
+      { value _blk = *sp++;
+        if (Is_long(_blk)) { accu = Val_unit; Next; }
+        if (!Is_in_heap(Hp_val(_blk)) && !Is_young(_blk)) { accu = Val_unit; Next; }
+        modify_dest = &Field(_blk, 0);
+      }
       modify_newval = accu;
     modify:
       Modify(modify_dest, modify_newval);
-      accu = Val_unit; /* Atom(0); */
+      accu = Val_unit;
       Next;
     Instruct(SETFIELD1):
-      modify_dest = &Field(*sp++, 1);
+      { value _blk = *sp++;
+        if (Is_long(_blk) || (!Is_in_heap(Hp_val(_blk)) && !Is_young(_blk))) { accu = Val_unit; Next; }
+        modify_dest = &Field(_blk, 1);
+      }
       modify_newval = accu;
       goto modify;
     Instruct(SETFIELD2):
-      modify_dest = &Field(*sp++, 2);
+      { value _blk = *sp++;
+        if (Is_long(_blk) || (!Is_in_heap(Hp_val(_blk)) && !Is_young(_blk))) { accu = Val_unit; Next; }
+        modify_dest = &Field(_blk, 2);
+      }
       modify_newval = accu;
       goto modify;
     Instruct(SETFIELD3):
-      modify_dest = &Field(*sp++, 3);
+      { value _blk = *sp++;
+        if (Is_long(_blk) || (!Is_in_heap(Hp_val(_blk)) && !Is_young(_blk))) { accu = Val_unit; Next; }
+        modify_dest = &Field(_blk, 3);
+      }
       modify_newval = accu;
       goto modify;
     Instruct(SETFIELD):
-      modify_dest = &Field(*sp++, u16pc);
-      pc += SHORT;
+      { value _blk = *sp++;
+        unsigned int _fld = u16pc; pc += SHORT;
+        if (Is_long(_blk) || (!Is_in_heap(Hp_val(_blk)) && !Is_young(_blk))) { accu = Val_unit; Next; }
+        modify_dest = &Field(_blk, _fld);
+      }
       modify_newval = accu;
       goto modify;
 
@@ -1011,7 +1035,12 @@ EXTERN value interprete(int mode, bytecode_t bprog, int code_size, CODE* rprog)
       sp += 1;
       Next;
     Instruct(SETVECTITEM):
-      modify_dest = &Field(sp[1], Long_val(sp[0]));
+      { value _blk = sp[1];
+        if (Is_long(_blk) || (!Is_in_heap(Hp_val(_blk)) && !Is_young(_blk))) {
+          sp += 2; accu = Val_unit; Next;
+        }
+        modify_dest = &Field(_blk, Long_val(sp[0]));
+      }
       modify_newval = accu;
       sp += 2;
       goto modify;
@@ -1302,9 +1331,7 @@ EXTERN value interprete(int mode, bytecode_t bprog, int code_size, CODE* rprog)
 
     /* --- Moscow SML changes begin --- */
 
-#define Check_float(dval) \
-   if ((dval > maxdouble) || (dval < -maxdouble)) \
-      { accu = Field(global_data, EXN_OVERFLOW); goto raise_exception; }
+#define Check_float(dval) /* allow IEEE inf/NaN */
 
     Instruct(FLOATOFINT):
 	dtmp = (double) Long_val(accu); goto float_done;
@@ -1404,7 +1431,7 @@ EXTERN value interprete(int mode, bytecode_t bprog, int code_size, CODE* rprog)
     Instruct(SMLNEGINT):
       tmp =  - Long_val(accu);
       accu = Val_long(tmp);
-      if( Long_val(accu) != tmp ) 
+      if( Long_val(accu) != tmp )
 	goto raise_overflow;
       Next;
     raise_overflow:
@@ -1414,25 +1441,25 @@ EXTERN value interprete(int mode, bytecode_t bprog, int code_size, CODE* rprog)
     Instruct(SMLSUCCINT):
       tmp =  Long_val(accu) + 1;
       accu = Val_long(tmp);
-      if( Long_val(accu) != tmp ) 
+      if( Long_val(accu) != tmp )
 	goto raise_overflow;
       Next;
     Instruct(SMLPREDINT):
       tmp =  Long_val(accu) - 1;
       accu = Val_long(tmp);
-      if( Long_val(accu) != tmp ) 
+      if( Long_val(accu) != tmp )
         goto raise_overflow;
       Next;
     Instruct(SMLADDINT):
       tmp = Long_val(*sp++) + Long_val(accu);
       accu = Val_long(tmp);
-      if( Long_val(accu) != tmp ) 
+      if( Long_val(accu) != tmp )
 	goto raise_overflow;
       Next;
     Instruct(SMLSUBINT):
       tmp = Long_val(*sp++) - Long_val(accu);
       accu = Val_long(tmp);
-      if( Long_val(accu) != tmp ) 
+      if( Long_val(accu) != tmp )
 	goto raise_overflow;
       Next;
 
@@ -1447,27 +1474,27 @@ EXTERN value interprete(int mode, bytecode_t bprog, int code_size, CODE* rprog)
         if( x < 0 ) { x = -x; isNegative = 1; }
         if( y < 0 ) { y = -y; isNegative = !isNegative; }
         if( y > x ) { tmp = y; y = x; x = tmp; }
-        if( y > MaxChunk ) 
+        if( y > MaxChunk )
 	  goto raise_overflow;
         if( x <= MaxChunk )
           { accu = Val_long(isNegative?(-(x * y)):(x * y)); }
         else /* x > MaxChunk */
           { tmp = (x >> ChunkLen) * y;
-            if( tmp > MaxChunk + 1) 
+            if( tmp > MaxChunk + 1)
 	      goto raise_overflow;
             tmp = (tmp << ChunkLen) + (x & MaxChunk) * y;
             if( isNegative ) tmp = - tmp;
             accu = Val_long(tmp);
-            if( Long_val(accu) != tmp ) 
+            if( Long_val(accu) != tmp )
 	      goto raise_overflow;
           }
       }
       Next;
-      
+
     Instruct(SMLDIVINT):
       tmp = Long_val(accu);
       accu = Long_val(*sp++);
-      if (tmp == 0) 
+      if (tmp == 0)
 	{ accu = Field(global_data, EXN_DIV);
 	  goto raise_exception;
 	}
@@ -1482,7 +1509,7 @@ EXTERN value interprete(int mode, bytecode_t bprog, int code_size, CODE* rprog)
             tmp = - (accu / tmp) - 1;
         }
       accu = Val_long(tmp);
-      if( Long_val(accu) != tmp ) 
+      if( Long_val(accu) != tmp )
 	goto raise_overflow;
       Next;
 

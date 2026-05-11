@@ -49,6 +49,36 @@ static void init_atoms(void)
   for(i = 0; i < 256; i++) first_atoms[i] = Make_header(0, i, White);
 }
 
+/* Watch for writes to first_atoms[219] via SIGSEGV */
+#include <signal.h>
+#include <sys/mman.h>
+#include <unistd.h>
+static volatile int atoms_protected = 0;
+static void atom_fault_handler(int sig, siginfo_t *info, void *ctx) {
+  void *fault_addr = info->si_addr;
+  fprintf(stderr, "[ATOM WRITE] SIGSEGV at %p — write to protected atom area!\n", fault_addr);
+  /* Unprotect and continue (this is just for debugging) */
+  long page_size = sysconf(_SC_PAGESIZE);
+  void *page = (void*)((long)fault_addr & ~(page_size-1));
+  mprotect(page, page_size, PROT_READ | PROT_WRITE);
+  atoms_protected = 0;
+}
+
+void protect_atoms(void) {
+  /* Write-protect the page containing first_atoms[219] */
+  long page_size = sysconf(_SC_PAGESIZE);
+  void *target = (void*)&first_atoms[219];
+  void *page = (void*)((long)target & ~(page_size-1));
+  struct sigaction sa;
+  sa.sa_sigaction = atom_fault_handler;
+  sa.sa_flags = SA_SIGINFO;
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGSEGV, &sa, NULL);
+  mprotect(page, page_size, PROT_READ);
+  atoms_protected = 1;
+  fprintf(stderr, "[atoms] Write-protected page %p containing first_atoms[219]\n", page);
+}
+
 static unsigned long read_size(unsigned char * p)
 {
   return ((unsigned long) p[0] << 24) + ((unsigned long) p[1] << 16) +

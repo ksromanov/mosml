@@ -8,6 +8,7 @@
 #include "gc_ctrl.h"
 #include "major_gc.h"
 #include "memory.h"
+extern int in_minor_collection;
 #include "minor_gc.h"
 #include "misc.h"
 
