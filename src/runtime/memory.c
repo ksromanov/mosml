@@ -135,7 +135,11 @@ EXTERN value alloc_shr (mlsize_t wosize, tag_t tag)
   hp = fl_allocate (wosize);
   if (hp == NULL){
     new_block = expand_heap (wosize);
-    if (new_block == NULL) raise_out_of_memory ();
+    if (new_block == NULL) {
+      if (in_minor_collection)
+        fatal_error ("Fatal error: out of memory during minor collection.\n");
+      raise_out_of_memory ();
+    }
     fl_add_block (new_block);
     hp = fl_allocate (wosize);
     if (hp == NULL) fatal_error ("alloc_shr: expand heap failed\n");
