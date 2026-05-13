@@ -69,7 +69,9 @@ typedef char schar;
 #ifdef MINIMIZE_MEMORY
 #define Max_stack_size 262144
 #else
-#define Max_stack_size 1048576
+/* Increased from 1MB to 64MB to handle large MLKit basis files (wordtables.sml
+ * generates 6137 functions creating deep SML evaluation stacks during CodeGen) */
+#define Max_stack_size (64 * 1048576)
 #endif
 
 /* Maximum size of a block allocated in the young generation (words). */
