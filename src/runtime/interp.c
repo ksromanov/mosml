@@ -965,23 +965,23 @@ EXTERN value interprete(int mode, bytecode_t bprog, int code_size, CODE* rprog)
       accu = Field(accu, u16pc); pc += SHORT; Next;
 
     Instruct(GETFIELD0_0):
-      accu = Field(accu, 0); 
-      accu = Field(accu, 0); 
+      accu = Field(accu, 0);
+      accu = Field(accu, 0);
       Next;
 
     Instruct(GETFIELD0_1):
-      accu = Field(accu, 0); 
-      accu = Field(accu, 1); 
+      accu = Field(accu, 0);
+      accu = Field(accu, 1);
       Next;
 
     Instruct(GETFIELD1_0):
-      accu = Field(accu, 1); 
-      accu = Field(accu, 0); 
+      accu = Field(accu, 1);
+      accu = Field(accu, 0);
       Next;
 
     Instruct(GETFIELD1_1):
-      accu = Field(accu, 1); 
-      accu = Field(accu, 1); 
+      accu = Field(accu, 1);
+      accu = Field(accu, 1);
       Next;
 
     Instruct(SETFIELD0):
@@ -1028,7 +1028,11 @@ EXTERN value interprete(int mode, bytecode_t bprog, int code_size, CODE* rprog)
 /* Array operations */
 
     Instruct(VECTLENGTH):
-      accu = Val_long(Wosize_val(accu));
+      if (Is_long(accu)) {
+        accu = Val_long(0);
+      } else {
+        accu = Val_long(Wosize_val(accu));
+      }
       Next;
     Instruct(GETVECTITEM):
       accu = Field(sp[0], Long_val(accu));
@@ -1295,7 +1299,11 @@ EXTERN value interprete(int mode, bytecode_t bprog, int code_size, CODE* rprog)
       inttest(GEINT,BRANCHIFGE,>=);
 
     Instruct(TAGOF):
-      accu = Val_long(Tag_val(accu));
+      if (Is_long(accu)) {
+        accu = Val_long(0);
+      } else {
+        accu = Val_long(Tag_val(accu));
+      }
       Next;
 
 #define unsigntest(name, tst)    					\
