@@ -1,270 +1,222 @@
-(* LargeInt -- interface to the GNU Multiple-Precision Library GMP *)
+(* IntInf -- arbitrary-precision integers, backed by GMP.
+   Uses a Zarith-style dual representation:
+   - Small integers are returned as Val_long (tagged, zero allocation)
+   - Large integers are Final_tag blocks with limbs on the mosml heap
+   1995-09-04 sestoft -- original GMP interface
+   2026-05-14 -- rewritten with mpn_* and small-int fast path *)
 
 exception Domain
 
 prim_eqtype int;
 type largeint = int;
 
-(* Interfacing to the C functions that call the GNU GMP library: *)
-
-local 
-    (* 1. Load the C dynamic library libmgmp.so, and get a handle to it.
-          Assume libmgmp.so is in a directory which is in the LD_LIBRARY_PATH,
-	  or that it is in a system library directory and that ldconfig has 
-	  been run: *)
-
+local
     open Dynlib
     val dlh = dlopen { lib = "libmgmp.so",
-		       flag = RTLD_LAZY, 
+		       flag = RTLD_LAZY,
 		       global = false }
+in
+
+(* Arithmetic: functional (a, b) -> result style *)
+val largeint_make    : unit -> largeint               = app1 (dlsym dlh "largeint_make")
+val largeint_make_si : Int.int -> largeint            = app1 (dlsym dlh "largeint_make_si")
+val largeint_clear   : largeint -> unit               = app1 (dlsym dlh "largeint_clear")
+val largeint_neg     : largeint -> largeint -> largeint
+                                                      = app2 (dlsym dlh "largeint_neg")
+val largeint_add     : largeint -> largeint -> largeint -> largeint
+                                                      = app3 (dlsym dlh "largeint_add")
+val largeint_sub     : largeint -> largeint -> largeint -> largeint
+                                                      = app3 (dlsym dlh "largeint_sub")
+val largeint_mul     : largeint -> largeint -> largeint -> largeint
+                                                      = app3 (dlsym dlh "largeint_mul")
+val largeint_tdiv    : largeint -> largeint -> largeint -> largeint
+                                                      = app3 (dlsym dlh "largeint_tdiv")
+val largeint_tmod    : largeint -> largeint -> largeint -> largeint
+                                                      = app3 (dlsym dlh "largeint_tmod")
+val largeint_fdiv    : largeint -> largeint -> largeint -> largeint
+                                                      = app3 (dlsym dlh "largeint_fdiv")
+val largeint_fmod    : largeint -> largeint -> largeint -> largeint
+                                                      = app3 (dlsym dlh "largeint_fmod")
+val largeint_fdivmod : largeint -> largeint -> largeint -> largeint -> largeint * largeint
+                                                      = app4 (dlsym dlh "largeint_fdivmod")
+val largeint_tdivmod : largeint -> largeint -> largeint -> largeint -> largeint * largeint
+                                                      = app4 (dlsym dlh "largeint_tdivmod")
+val largeint_cmp     : largeint -> largeint -> Int.int = app2 (dlsym dlh "largeint_cmp")
+val largeint_cmp_si  : largeint -> Int.int -> Int.int  = app2 (dlsym dlh "largeint_cmp_si")
+val largeint_sizeinbase : largeint -> Int.int -> Int.int
+                                                      = app2 (dlsym dlh "largeint_sizeinbase")
+val largeint_get_str : largeint -> Int.int -> string  = app2 (dlsym dlh "largeint_get_str")
+val largeint_set_str : largeint -> string -> Int.int -> largeint
+                                                      = app3 (dlsym dlh "largeint_set_str")
+val largeint_pow_ui  : largeint -> largeint -> Int.int -> largeint
+                                                      = app3 (dlsym dlh "largeint_pow_ui")
+val largeint_to_si   : largeint -> Int.int            = app1 (dlsym dlh "largeint_to_si")
+val largeint_andb    : largeint -> largeint -> largeint = app2 (dlsym dlh "largeint_andb")
+val largeint_orb     : largeint -> largeint -> largeint = app2 (dlsym dlh "largeint_orb")
+val largeint_xorb    : largeint -> largeint -> largeint = app2 (dlsym dlh "largeint_xorb")
+val largeint_notb    : largeint -> largeint            = app1 (dlsym dlh "largeint_notb")
+val largeint_shl     : largeint -> Int.int -> largeint = app2 (dlsym dlh "largeint_shl")
+val largeint_shr     : largeint -> Int.int -> largeint = app2 (dlsym dlh "largeint_shr")
+val largeint_ashr    : largeint -> Int.int -> largeint = app2 (dlsym dlh "largeint_ashr")
+val largeint_register_equal : unit -> unit            = app1 (dlsym dlh "largeint_register_equal")
+
+val _ = largeint_register_equal ()
+
+end
+
+val precision = NONE
+val minInt    = NONE : int option
+val maxInt    = NONE : int option
+
+local
+    val zero = largeint_make_si 0
+
+    fun isZero li = largeint_cmp_si li 0 = 0
 
 in
 
-    (* 2. Define SML functions using this handle.  Type ascriptions
-          are necessary for SML type safety:                            *)
-
-val largeint_make    : unit -> largeint        
-    = app1 (dlsym dlh "largeint_make")
-val largeint_make_si : Int.int -> largeint 
-    = app1 (dlsym dlh "largeint_make_si")
-val largeint_clear   : largeint -> unit
-    = app1 (dlsym dlh "largeint_clear")
-val largeint_set     : largeint -> largeint -> unit
-    = app2 (dlsym dlh "largeint_set")
-val largeint_set_si  : largeint -> Int.int -> unit
-    = app2 (dlsym dlh "largeint_set_si")
-val largeint_to_si   : largeint -> Int.int
-    = app1 (dlsym dlh "largeint_to_si")
-val largeint_neg     : largeint -> largeint -> unit
-    = app2 (dlsym dlh "largeint_neg")
-val largeint_add     : largeint -> largeint -> largeint -> unit
-    = app3 (dlsym dlh "largeint_add")
-val largeint_sub     : largeint -> largeint -> largeint -> unit
-    = app3 (dlsym dlh "largeint_sub")
-val largeint_mul     : largeint -> largeint -> largeint -> unit
-    = app3 (dlsym dlh "largeint_mul")
-val largeint_tdiv    : largeint -> largeint -> largeint -> unit
-    = app3 (dlsym dlh "largeint_tdiv")
-val largeint_tmod    : largeint -> largeint -> largeint -> unit
-    = app3 (dlsym dlh "largeint_tmod")
-val largeint_fdiv    : largeint -> largeint -> largeint -> unit
-    = app3 (dlsym dlh "largeint_fdiv")
-val largeint_fmod    : largeint -> largeint -> largeint -> unit
-    = app3 (dlsym dlh "largeint_fmod")
-val largeint_fdivmod : largeint -> largeint -> largeint -> largeint -> unit
-    = app4 (dlsym dlh "largeint_fdivmod")
-val largeint_tdivmod : largeint -> largeint -> largeint -> largeint -> unit
-    = app4 (dlsym dlh "largeint_tdivmod")
-val largeint_cmp     : largeint -> largeint -> Int.int 
-    = app2 (dlsym dlh "largeint_cmp")
-val largeint_cmp_si  : largeint -> Int.int -> Int.int 
-    = app2 (dlsym dlh "largeint_cmp_si")
-val largeint_sizeinbase : largeint -> Int.int -> Int.int 
-    = app2 (dlsym dlh "largeint_sizeinbase")
-val largeint_get_str : largeint -> Int.int -> string
-    = app2 (dlsym dlh "largeint_get_str")
-val largeint_set_str : largeint -> string -> Int.int -> unit
-    = app3 (dlsym dlh "largeint_set_str")
-val largeint_pow_ui  : largeint -> largeint -> Int.int -> unit
-    = app3 (dlsym dlh "largeint_pow_ui")
-
-val largeint_register_equal : unit -> unit
-    = app1 (dlsym dlh "largeint_register_equal")
-
-val _ = largeint_register_equal ()
-end
-
-val onepos = largeint_make_si 1
-and zero   = largeint_make_si 0
-and oneneg = largeint_make_si ~1;
-
-val precision = NONE
-val minInt    = NONE
-val maxInt    = NONE
-
-fun fromInt  0 = zero
-  | fromInt  1 = onepos
-  | fromInt ~1 = oneneg
-  | fromInt si = largeint_make_si si;
-
-fun toInt li = 
-    case (Int.minInt, Int.maxInt) of
-	(SOME  defaultMinint, SOME defaultMaxint) =>
-	    if largeint_cmp_si li defaultMinint <> ~1 
-		andalso largeint_cmp_si li defaultMaxint <> 1 
-	    then
-		    largeint_to_si li
-	    else 
-		raise Overflow
-      | _  => raise Fail "LargeInt.from: internal error";
-
+fun fromInt  i = largeint_make_si i
 fun fromLarge x = x
 fun toLarge x = x
 
-fun sign li = largeint_cmp_si li 0;    
+fun toInt li =
+    case (Int.minInt, Int.maxInt) of
+	(SOME lo, SOME hi) =>
+	    if largeint_cmp_si li lo <> ~1
+	       andalso largeint_cmp_si li hi <> 1
+	    then largeint_to_si li
+	    else raise Overflow
+      | _ => raise Fail "IntInf.toInt: internal error"
 
-fun sameSign(li1, li2) = sign li1 = sign li2;
+fun sign li = largeint_cmp_si li 0
 
-fun compare(li1, li2) =
+fun sameSign (li1, li2) = sign li1 = sign li2
+
+fun compare (li1, li2) =
     case largeint_cmp li1 li2 of
 	~1 => LESS
       |  0 => EQUAL
       |  1 => GREATER
-      |  _ => raise Fail "LargeInt.compare: internal error";
+      |  _ => raise Fail "IntInf.compare: internal error"
 
-fun ~ li = 
-    let val res = largeint_make ()
-    in largeint_neg res li; res end;
+fun op < (a, b)  = Int.< (largeint_cmp a b, 0)
+fun op <= (a, b) = Int.<= (largeint_cmp a b, 0)
+fun op > (a, b)  = Int.> (largeint_cmp a b, 0)
+fun op >= (a, b) = Int.>= (largeint_cmp a b, 0)
 
-fun abs li = 
-    if sign li = ~1 then ~ li else li;
+fun eq (a, b) = largeint_cmp a b = 0
+fun ne (a, b) = largeint_cmp a b <> 0
 
-fun li1 div li2 = 
-    if sign li2 = 0 then raise Div 
-    else
-	let val res = largeint_make ()
-	in largeint_fdiv res li1 li2; res end
+fun min (a, b) = if a < b then a else b
+fun max (a, b) = if a < b then b else a
 
-fun li1 mod li2 = 
-    if sign li2 = 0 then raise Div 
-    else
-	let val res = largeint_make ()
-	in 
-	    largeint_fmod res li1 li2; 
-	    res
-	end;
+fun ~ li     = largeint_neg  zero li
+fun abs li   = if Int.< (sign li, 0) then ~ li else li
 
-fun quot(li1, li2) = 
-    if sign li2 = 0 then raise Div 
-    else
-	let val res = largeint_make ()
-	in largeint_tdiv res li1 li2; res end
+fun op + (a, b) = largeint_add zero a b
+fun op - (a, b) = largeint_sub zero a b
+fun op * (a, b) = largeint_mul zero a b
 
-fun rem(li1, li2) = 
-    if sign li2 = 0 then raise Div 
-    else
-	let val res = largeint_make ()
-	in largeint_tmod res li1 li2; res end
+fun op div (a, b) =
+    if isZero b then raise Div
+    else largeint_fdiv zero a b
 
-fun divMod(li1, li2) = 
-    if sign li2 = 0 then raise Div 
-    else
-	let val divres = largeint_make ()
-	    and modres = largeint_make ()
-	in 
-	    largeint_fdivmod divres modres li1 li2; 
- 	    (divres, modres) 
-	end;
+fun op mod (a, b) =
+    if isZero b then raise Div
+    else largeint_fmod zero a b
 
-fun quotRem(li1, li2) = 
-    if sign li2 = 0 then raise Div 
-    else
-	let val quotres = largeint_make ()
-	    and remres  = largeint_make ()
-	in largeint_tdivmod quotres remres li1 li2; (quotres, remres) end;
+fun quot (a, b) =
+    if isZero b then raise Div
+    else largeint_tdiv zero a b
 
-fun log2 li = 
-    if Int.<=(sign li, 0) then raise Domain
-    else largeint_sizeinbase li 2;
+fun rem (a, b) =
+    if isZero b then raise Div
+    else largeint_tmod zero a b
 
-fun pow(li, exp) = 
-    if Int.<(exp, 0) then 
-	if sign li = 0 then raise Div 
-	else if largeint_cmp li onepos = 0 then onepos
-        else if largeint_cmp li oneneg = 0 then oneneg
-	else zero
-    else if exp = 0 then onepos
-    else
-	let val res = largeint_make () 
-	in largeint_pow_ui res li exp; res end;
+fun divMod (a, b) =
+    if isZero b then raise Div
+    else largeint_fdivmod zero zero a b
 
-fun fmt radix li = 
+fun quotRem (a, b) =
+    if isZero b then raise Div
+    else largeint_tdivmod zero zero a b
+
+fun log2 li =
+    if Int.<= (sign li, 0) then raise Domain
+    else Int.- (largeint_sizeinbase li 2, 1)
+
+fun pow (li, exp) =
+    if Int.< (exp, 0) then
+	if isZero li                         then raise Div
+	else if largeint_cmp_si li 1  = 0   then fromInt 1
+	else if largeint_cmp_si li ~1 = 0   then fromInt (if Int.mod (exp, 2) = 0 then 1 else ~1)
+	else fromInt 0
+    else if exp = 0 then fromInt 1
+    else largeint_pow_ui zero li exp
+
+fun fmt radix li =
     let open StringCvt
-    in case radix of 
-	BIN => largeint_get_str li  2
-      | OCT => largeint_get_str li  8
-      | DEC => largeint_get_str li 10
-      | HEX => largeint_get_str li 16
-    end;
-    
-fun toString li = largeint_get_str li 10;
+    in case radix of
+	   BIN => largeint_get_str li  2
+	 | OCT => largeint_get_str li  8
+	 | DEC => largeint_get_str li 10
+	 | HEX => largeint_get_str li 16
+    end
 
-local 
+fun toString li = largeint_get_str li 10
+
+local
     open StringCvt
     fun skipWSget getc source = getc (skipWS getc source)
-    prim_val sub_      : string -> Int.int -> char = 2 "get_nth_char";
-    prim_val mkstring_ : Int.int -> string         = 1 "create_string";
-    prim_val update_   : string -> Int.int -> char -> unit 
-						       = 3 "set_nth_char";
+
+    fun makelarge digits (base : Int.int) src =
+	(SOME (largeint_set_str zero (String.implode (List.rev digits)) base, src))
+	handle Fail _ => NONE
+
+    fun dig1 getc digits (base : Int.int) isDigit NONE = NONE
+      | dig1 getc digits base isDigit (SOME (c, rest)) =
+	let fun digr digits src =
+		case getc src of
+		    NONE           => makelarge digits base src
+		  | SOME (c, rest) =>
+			if isDigit c then digr (c :: digits) rest
+			else makelarge digits base src
+	in if isDigit c then digr (c :: digits) rest
+	   else NONE
+	end
+
+    fun sign_ getc base isDigit NONE = NONE
+      | sign_ getc base isDigit (SOME (#"~", rest)) =
+	    dig1 getc [#"-"] base isDigit (getc rest)
+      | sign_ getc base isDigit (SOME (#"-", rest)) =
+	    dig1 getc [#"-"] base isDigit (getc rest)
+      | sign_ getc base isDigit (SOME (#"+", rest)) =
+	    dig1 getc [] base isDigit (getc rest)
+      | sign_ getc base isDigit inp =
+	    dig1 getc [] base isDigit inp
+
 in
     fun scan radix getc source =
-	let open StringCvt;
-
-	    val (isDigit, factor) = 
+	let open StringCvt
+	    val (base, isDigit) =
 		case radix of
-		    BIN => (fn c => (#"0" <= c andalso c <= #"1"),  2)
-		  | OCT => (fn c => (#"0" <= c andalso c <= #"7"),  8)
-		  | DEC => (Char.isDigit,                          10)
-		  | HEX => (Char.isHexDigit,                       16)
+		    BIN => (2,  fn c => c = #"0" orelse c = #"1")
+		  | OCT => (8,  fn c => Char.>= (c, #"0") andalso Char.<= (c, #"7"))
+		  | DEC => (10, Char.isDigit)
+		  | HEX => (16, Char.isHexDigit)
+	in sign_ getc base isDigit (skipWSget getc source)
+	end
 
-	    fun revimplode cs = 
-		let val n = List.length cs
-		    val newstr = if n > String.maxSize then raise Size 
-				 else mkstring_ n
-		    fun init []      i = ()
-		      | init (c::cr) i = (update_ newstr i c; init cr (i-1))
-		in (init cs (n-1); newstr) end;
-
-	    fun makelarge digits src = 
-		let val str = revimplode digits
-		    val res = largeint_make ()
-		in 
-		    (largeint_set_str res str factor; SOME (res, src))
-		    handle Fail _ => NONE
-		end
-
-	    fun dig1 digits NONE             = NONE
-	      | dig1 digits (SOME (c, rest)) = 
-		let fun digr digits src = 
-		    case getc src of
-			NONE           => makelarge digits src
-		      | SOME (c, rest) => 
-			    if isDigit c then digr (c :: digits) rest
-			    else makelarge digits src
-		in 
-		    if isDigit c then digr (c :: digits) rest 
-		    else NONE 
-		end
-	    fun sign NONE                = NONE
-	      | sign (SOME (#"~", rest)) = dig1  [#"-"] (getc rest)
-	      | sign (SOME (#"-", rest)) = dig1  [#"-"] (getc rest)
-	      | sign (SOME (#"+", rest)) = dig1  []     (getc rest)
-	      | sign inp                 = dig1  []     inp	    
-	in sign (skipWSget getc source) end;
-	    
     val fromString = scanString (scan DEC)
 end
 
-val op <  = fn (li1, li2) => (largeint_cmp li1 li2) <  0;
-val op <= = fn (li1, li2) => (largeint_cmp li1 li2) <= 0;
-val op >  = fn (li1, li2) => (largeint_cmp li1 li2) >  0;
-val op >= = fn (li1, li2) => (largeint_cmp li1 li2) >= 0;
+(* Bitwise operations use two's complement semantics for negative integers *)
+fun andb (a, b) = largeint_andb a b
+fun orb  (a, b) = largeint_orb  a b
+fun xorb (a, b) = largeint_xorb a b
+fun notb a      = largeint_notb a
+fun << (a, n)   = largeint_shl  a n
+fun >> (a, n)   = largeint_shr  a n
+fun ~>> (a, n)  = largeint_ashr a n
 
-fun eq(li1, li2) = (largeint_cmp li1 li2) =  0;
-fun ne(li1, li2) = (largeint_cmp li1 li2) <> 0;
-
-fun min(li1, li2) = if li1 < li2 then li1 else li2;
-
-fun max(li1, li2) = if li1 > li2 then li1 else li2;
-
-fun op+ (li1, li2) = 
-    let val res = largeint_make ()
-    in largeint_add res li1 li2; res end;
-
-fun op - (li1, li2) = 
-    let val res = largeint_make ()
-    in largeint_sub res li1 li2; res end;
-
-fun op * (li1, li2) = 
-    let val res = largeint_make ()
-    in largeint_mul res li1 li2; res end;
+end
