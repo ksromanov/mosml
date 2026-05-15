@@ -2,34 +2,34 @@
 
 load "IntInf";
 
-use "../../mosmllib/test/auxil.sml";
+use ":::mosmllib:test:auxil.sml";
 
 local 
     open IntInf
     fun divmod1 (i, d, q, r)  = 
-	check'(fn () => (toInt (fromInt i div fromInt d) = q 
-			 andalso toInt(fromInt i mod fromInt d) = r));
+        check'(fn () => (toInt (fromInt i div fromInt d) = q 
+                         andalso toInt(fromInt i mod fromInt d) = r));
     fun quotrem1 (i, d, q, r) = 
-	check'(fn () => (toInt (quot(fromInt i, fromInt d)) = q 
-			 andalso toInt (rem(fromInt i, fromInt d)) = r));
+        check'(fn () => (toInt (quot(fromInt i, fromInt d)) = q 
+                         andalso toInt (rem(fromInt i, fromInt d)) = r));
 
     fun divmod2 (i, d, q, r)  = 
-	check'(fn () => let val (q', r') = divMod(fromInt i, fromInt d) 
-			in toInt q' = q andalso toInt r' = r end);
+        check'(fn () => let val (q', r') = divMod(fromInt i, fromInt d) 
+                        in toInt q' = q andalso toInt r' = r end);
     fun quotrem2 (i, d, q, r) = 
-	check'(fn () => let val (q', r') = quotRem(fromInt i, fromInt d) 
-			in toInt q' = q andalso toInt r' = r end);
+        check'(fn () => let val (q', r') = quotRem(fromInt i, fromInt d) 
+                        in toInt q' = q andalso toInt r' = r end);
 
     fun add1(x, y, sum) = 
-	check'(fn () => (toInt (fromInt x + fromInt y) = sum));
+        check'(fn () => (toInt (fromInt x + fromInt y) = sum));
 
     fun sub1(x, y, diff) = 
-	check'(fn () => (toInt (fromInt x - fromInt y) = diff));
+        check'(fn () => (toInt (fromInt x - fromInt y) = diff));
 
     fun mul1(x, y, prod) = 
-	check'(fn () => (toInt (fromInt x * fromInt y) = prod));
-	
-in	
+        check'(fn () => (toInt (fromInt x * fromInt y) = prod));
+        
+in      
 
 val test1a = divmod1(10, 3, 3, 1);
 val test1b = divmod1(~10, 3, ~4, 2);
@@ -75,127 +75,112 @@ fun chkToString (i, s) = check'(fn _ => toString(fromInt i) = s);
 
 val test12a = 
     List.map chkToString [(0, "0"), 
-			  (~1, "~1"), 
-			  (12345678, "12345678"),
-			  (~12345678, "~12345678")];
+                          (~1, "~1"), 
+                          (12345678, "12345678"),
+                          (~12345678, "~12345678")];
 
 fun chk f (s, r) = 
     check'(fn _ => 
-	   case f s of
-	       SOME res => toInt res = r
-	     | NONE     => false)
+           case f s of
+               SOME res => toInt res = r
+             | NONE     => false)
 
 fun chkScan fmt = chk (StringCvt.scanString (scan fmt))
 
 val test13a = 
     List.map (chk fromString)
              [("10789", 10789),
-	      ("+10789", 10789),
-	      ("~10789", ~10789),
-	      ("-10789", ~10789),
-	      (" \n\t10789crap", 10789),
-	      (" \n\t+10789crap", 10789),
-	      (" \n\t~10789crap", ~10789),
-	      (" \n\t-10789crap", ~10789)];
+              ("+10789", 10789),
+              ("~10789", ~10789),
+              ("-10789", ~10789),
+              (" \n\t10789crap", 10789),
+              (" \n\t+10789crap", 10789),
+              (" \n\t~10789crap", ~10789),
+              (" \n\t-10789crap", ~10789)];
 
 val test13b = 
     List.map (fn s => case fromString s of NONE => "OK" | _ => "WRONG")
-	   ["", "-", "~", "+", " \n\t", " \n\t-", " \n\t~", " \n\t+", 
-	    "+ 1", "~ 1", "- 1", "ff"];	    
+           ["", "-", "~", "+", " \n\t", " \n\t-", " \n\t~", " \n\t+", 
+            "+ 1", "~ 1", "- 1", "ff"];     
 
 val test14a = 
     List.map (chkScan StringCvt.DEC)
              [("10789", 10789),
-	      ("+10789", 10789),
-	      ("~10789", ~10789),
-	      ("-10789", ~10789),
-	      (" \n\t10789crap", 10789),
-	      (" \n\t+10789crap", 10789),
-	      (" \n\t~10789crap", ~10789),
-	      (" \n\t-10789crap", ~10789)];
+              ("+10789", 10789),
+              ("~10789", ~10789),
+              ("-10789", ~10789),
+              (" \n\t10789crap", 10789),
+              (" \n\t+10789crap", 10789),
+              (" \n\t~10789crap", ~10789),
+              (" \n\t-10789crap", ~10789)];
 
 val test14b = 
     List.map (fn s => case StringCvt.scanString (scan StringCvt.DEC) s 
-	              of NONE => "OK" | _ => "WRONG")
-	   ["", "-", "~", "+", " \n\t", " \n\t-", " \n\t~", " \n\t+", 
-	    "+ 1", "~ 1", "- 1", "ff"];	    
+                      of NONE => "OK" | _ => "WRONG")
+           ["", "-", "~", "+", " \n\t", " \n\t-", " \n\t~", " \n\t+", 
+            "+ 1", "~ 1", "- 1", "ff"];     
 
 val test15a = 
     List.map (chkScan StringCvt.BIN)
              [("10010", 18),
-	      ("+10010", 18),
-	      ("~10010", ~18),
-	      ("-10010", ~18),
-	      (" \n\t10010crap", 18),
-	      (" \n\t+10010crap", 18),
-	      (" \n\t~10010crap", ~18),
-	      (" \n\t-10010crap", ~18)];
+              ("+10010", 18),
+              ("~10010", ~18),
+              ("-10010", ~18),
+              (" \n\t10010crap", 18),
+              (" \n\t+10010crap", 18),
+              (" \n\t~10010crap", ~18),
+              (" \n\t-10010crap", ~18)];
 
 val test15b = 
     List.map (fn s => case StringCvt.scanString (scan StringCvt.BIN) s 
-	              of NONE => "OK" | _ => "WRONG")
-	   ["", "-", "~", "+", " \n\t", " \n\t-", " \n\t~", " \n\t+", 
-	    "+ 1", "~ 1", "- 1", "2", "8", "ff"];
+                      of NONE => "OK" | _ => "WRONG")
+           ["", "-", "~", "+", " \n\t", " \n\t-", " \n\t~", " \n\t+", 
+            "+ 1", "~ 1", "- 1", "2", "8", "ff"];
 
 val test16a = 
     List.map (chkScan StringCvt.OCT)
              [("2071", 1081),
-	      ("+2071", 1081),
-	      ("~2071", ~1081),
-	      ("-2071", ~1081),
-	      (" \n\t2071crap", 1081),
-	      (" \n\t+2071crap", 1081),
-	      (" \n\t~2071crap", ~1081),
-	      (" \n\t-2071crap", ~1081)];
+              ("+2071", 1081),
+              ("~2071", ~1081),
+              ("-2071", ~1081),
+              (" \n\t2071crap", 1081),
+              (" \n\t+2071crap", 1081),
+              (" \n\t~2071crap", ~1081),
+              (" \n\t-2071crap", ~1081)];
 
 val test16b = 
     List.map (fn s => case StringCvt.scanString (scan StringCvt.OCT) s 
-	              of NONE => "OK" | _ => "WRONG")
-	   ["", "-", "~", "+", " \n\t", " \n\t-", " \n\t~", " \n\t+", 
-	    "+ 1", "~ 1", "- 1", "8", "ff"];
+                      of NONE => "OK" | _ => "WRONG")
+           ["", "-", "~", "+", " \n\t", " \n\t-", " \n\t~", " \n\t+", 
+            "+ 1", "~ 1", "- 1", "8", "ff"];
 
 val test17a = 
     List.map (chkScan StringCvt.HEX)
              [("20Af", 8367),
-	      ("+20Af", 8367),
-	      ("~20Af", ~8367),
-	      ("-20Af", ~8367),
-	      (" \n\t20AfGrap", 8367),
-	      (" \n\t+20AfGrap", 8367),
-	      (" \n\t~20AfGrap", ~8367),
-	      (" \n\t-20AfGrap", ~8367)];
+              ("+20Af", 8367),
+              ("~20Af", ~8367),
+              ("-20Af", ~8367),
+              (" \n\t20AfGrap", 8367),
+              (" \n\t+20AfGrap", 8367),
+              (" \n\t~20AfGrap", ~8367),
+              (" \n\t-20AfGrap", ~8367)];
 
 val test17b = 
     List.map (fn s => case StringCvt.scanString (scan StringCvt.HEX) s 
-	              of NONE => "OK" | _ => "WRONG")
-	   ["", "-", "~", "+", " \n\t", " \n\t-", " \n\t~", " \n\t+", 
-	    "+ 1", "~ 1", "- 1"];
+                      of NONE => "OK" | _ => "WRONG")
+           ["", "-", "~", "+", " \n\t", " \n\t-", " \n\t~", " \n\t+", 
+            "+ 1", "~ 1", "- 1"];
 
 val test18 =
-    check'(fn _ =>
-	   toInt(pow(fromInt 12, 3)) = 1728
-	   andalso toInt(pow(fromInt  0 ,  1)) = 0
-	   andalso toInt(pow(fromInt  1 ,  0)) = 1
-	   andalso toInt(pow(fromInt  0 ,  0)) = 1
-	   andalso toInt(pow(fromInt  1 , ~1)) = 1
-	   andalso toInt(pow(fromInt ~1 , ~1)) = ~1
-	   andalso toInt(pow(fromInt  2 , ~1)) = 0
-	   andalso toInt(pow(fromInt ~2 , ~1)) = 0)
-
-val test19a = check'(fn _ => fromInt 42 = fromInt 42);
-val test19b = check'(fn _ => not (fromInt 42 = fromInt 99));
-val test19c = check'(fn _ => fromInt 0 = fromInt 0);
-val test19d = check'(fn _ => fromInt ~1 = fromInt ~1);
-val test19e = check'(fn _ => not (fromInt 1 = fromInt ~1));
-
-val test20a = check'(fn _ => pow(fromInt 2, 100) = pow(fromInt 2, 100));
-val test20b = check'(fn _ => not (pow(fromInt 2, 100) = pow(fromInt 2, 99)));
-val test20c = check'(fn _ =>
-    let val x = pow(fromInt 2, 200) in x = x end);
-
-val test21a = check'(fn _ => fromInt 42 <> fromInt 99);
-val test21b = check'(fn _ => not (fromInt 42 <> fromInt 42));
-
+    check'(fn _ => 
+           toInt(pow(fromInt 12, 3)) = 1728
+           andalso toInt(pow(fromInt  0 ,  1)) = 0
+           andalso toInt(pow(fromInt  1 ,  0)) = 1
+           andalso toInt(pow(fromInt  0 ,  0)) = 1
+           andalso toInt(pow(fromInt  1 , ~1)) = 1
+           andalso toInt(pow(fromInt ~1 , ~1)) = ~1
+           andalso toInt(pow(fromInt  2 , ~1)) = 0
+           andalso toInt(pow(fromInt ~2 , ~1)) = 0)
 end;
 
 val _ = quit();

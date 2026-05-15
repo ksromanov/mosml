@@ -35,9 +35,11 @@ intinf.o: intinf.c
 libmgmp.so: intinf.o
 	$(DYNLD) -o libmgmp.so intinf.o -L$(GMPLIBDIR) -lgmp -lc
 
-test:
-	echo $(CURDIR)
-	mosml testintinf.sml
+MOSML=$(ROOTDIR)/camlrunm $(ROOTDIR)/compiler/mosmltop \
+      -stdlib $(ROOTDIR)/mosmllib -P full
+
+test: libmgmp.so IntInf.uo
+	LD_LIBRARY_PATH=$(GMPLIBDIR):$$LD_LIBRARY_PATH $(MOSML) < testintinf.sml
 
 clean:
 	rm -f *.o
