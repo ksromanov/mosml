@@ -34,6 +34,8 @@ static char *expand_heap (mlsize_t request)
     return NULL;
   }
   orig_ptr = ((char **)mem)[0];
+  /* Zero-init heap chunk to prevent darken() from reading garbage */
+  memset(mem + sizeof(heap_chunk_head), 0, malloc_request);
   mem += sizeof (heap_chunk_head);
   (((heap_chunk_head *) mem) [-1]).size = malloc_request;
   Assert (Wosize_bhsize (malloc_request) >= request);

@@ -1,3 +1,4 @@
+#include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include "config.h"
@@ -737,6 +738,8 @@ void init_major_heap (asize_t heap_size)
   if (heap_start == NULL)
     fatal_error ("Fatal error: not enough memory for the initial heap.\n");
   heap_start += sizeof (heap_chunk_head);
+  /* Zero-init heap to prevent GC from following garbage pointers */
+  memset(heap_start, 0, stat_heap_size);
   Assert ((unsigned long) heap_start % Page_size == 0);
   (((heap_chunk_head *) heap_start) [-1]).size = stat_heap_size;
   (((heap_chunk_head *) heap_start) [-1]).next = NULL;
