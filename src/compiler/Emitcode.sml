@@ -106,7 +106,9 @@ fun emit_zam zam =
     | Kquote(ATOMsc(WORDscon w)) => out_word_const w
     | Kquote(ATOMsc(CHARscon c)) => out_int_const (Char.ord c)
     | Kquote(BLOCKsc(CONtag(t,_), [])) =>
-	  if t < 10 then out (ATOM0 + t) else (out ATOM; out t)
+	  if t < 10 then out (ATOM0 + t)
+	  else if t < 256 then (out ATOM; out t)
+	  else (out GETGLOBAL; slot_for_literal (BLOCKsc(CONtag(t,0), [])))
     | Kquote sc =>       (out GETGLOBAL; slot_for_literal sc)
     | Kget_global uid => (out GETGLOBAL; slot_for_get_global uid)
     | Kset_global uid => (out SETGLOBAL; slot_for_set_global uid)
@@ -224,7 +226,9 @@ fun emit_zam zam =
                 | Pword_test tst => out_bool_test EQUNSIGN tst
                 | _ => fatalError "emit_zam : Kprim, Ptest")
           | Patom t =>
-              if t < 10 then out (ATOM0 + t) else (out ATOM; out t)
+              if t < 10 then out (ATOM0 + t)
+              else if t < 256 then (out ATOM; out t)
+              else (out GETGLOBAL; slot_for_literal (BLOCKsc(CONtag(t,0), [])))
           | Pccall(name, arity) =>
               (if arity <= 5 then
                  out (C_CALL1 + arity - 1)
@@ -255,7 +259,9 @@ fun emit zams =
     | Kpush :: Kquote(ATOMsc(CHARscon c)) :: C =>
         (out_push_int_const (Char.ord c); emit C)
     | Kpush :: Kquote(BLOCKsc(CONtag(t,_), [])) :: C =>
-	((if t = 0 then out PUSHATOM0 else (out PUSHATOM; out t));
+	((if t = 0 then out PUSHATOM0
+	  else if t < 256 then (out PUSHATOM; out t)
+	  else (out PUSH_GETGLOBAL; slot_for_literal (BLOCKsc(CONtag(t,0), []))));
 	 emit C)
     | Kpush :: Kquote sc :: C => (out PUSH_GETGLOBAL; slot_for_literal sc; emit C)
     | Kpush :: Kaccess n :: C =>
