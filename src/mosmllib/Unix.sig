@@ -17,6 +17,7 @@ val reap            : ('a, 'b) proc -> OS.Process.status
 
 val fork            : unit -> int option
 val waitpid         : int -> int
+val waitpid_any     : unit -> int * int
 val getpid          : unit -> int
 val exit            : int -> 'a
 end
@@ -99,6 +100,10 @@ end
    [waitpid pid] suspends the calling process until the child process
    with process id pid terminates.  Returns the exit status code of
    the child (0 for success).  Raises Fail in case of failure.
+
+   [waitpid_any ()] suspends the calling process until any child
+   process terminates.  Returns (pid, code) where pid is the process
+   id of the terminated child and code is its exit status code.
 
    [getpid ()] returns the process id of the calling process.
 

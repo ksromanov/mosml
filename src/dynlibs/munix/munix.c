@@ -181,6 +181,24 @@ EXTERNML value unix_waitpid_status(value vpid) {
   return res;
 }
 
+/* ML type: unit -> int * int  (pid, exit_code) */
+EXTERNML value unix_waitpid_any(value unit) {
+  int status;
+  value res;
+  int pid = waitpid(-1, &status, 0);
+  if (pid < 0)
+    failure();
+  res = alloc_tuple(2);
+  Field(res, 0) = Val_long(pid);
+  if (WIFEXITED(status))
+    Field(res, 1) = Val_long(WEXITSTATUS(status));
+  else if (WIFSIGNALED(status))
+    Field(res, 1) = Val_long(128 + WTERMSIG(status));
+  else
+    Field(res, 1) = Val_long(-1);
+  return res;
+}
+
 /* ML type: unit -> int */
 EXTERNML value unix_getpid(value unit) {
   return Val_long(getpid());

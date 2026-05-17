@@ -124,6 +124,12 @@ fun waitpid (pid : int) : int =
     in code end
     handle Fail s => raise Fail ("Unix.waitpid: " ^ s)
 
+val waitpid_any_ : unit -> int * int = app1 "waitpid_any"
+
+fun waitpid_any () : int * int =
+    waitpid_any_ ()
+    handle Fail s => raise Fail ("Unix.waitpid_any: " ^ s)
+
 val getpid : unit -> int = app1 "getpid"
 
 val exit_ : int -> unit = app1 "exit"
