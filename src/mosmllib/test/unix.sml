@@ -91,4 +91,33 @@ val test7 = check'(fn _ =>
 	  in alloc 100; exit 0; false end
       | SOME pid => waitpid pid = 0);
 
+(* Test 8: kill_pid SIGTERM terminates a spinning child *)
+
+val test8 = check'(fn _ =>
+    case fork () of
+	NONE    => (let fun spin () = spin () in spin (); false end)
+      | SOME pid =>
+	  (kill_pid pid 15;      (* SIGTERM *)
+	   waitpid pid <> 0));
+
+(* Test 9: kill_pid SIGKILL terminates a spinning child *)
+
+val test9 = check'(fn _ =>
+    case fork () of
+	NONE    => (let fun spin () = spin () in spin (); false end)
+      | SOME pid =>
+	  (kill_pid pid 9;       (* SIGKILL *)
+	   waitpid pid <> 0));
+
+(* Test 10: kill_pid on a reaped pid raises Fail (ESRCH) *)
+
+val test10 = check'(fn _ =>
+    let val pid = case fork () of
+		      NONE   => (exit 0; 0)
+		    | SOME p => p
+	val _ = waitpid pid
+    in (kill_pid pid 15; false)
+       handle Fail _ => true
+    end);
+
 end

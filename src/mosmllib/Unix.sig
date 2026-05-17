@@ -13,6 +13,7 @@ val textOutstreamOf : ('a, TextIO.outstream) proc -> TextIO.outstream
 val binInstreamOf   : (BinIO.instream, 'a) proc -> BinIO.instream
 val binOutstreamOf  : ('a, BinIO.outstream) proc -> BinIO.outstream 
 val kill            : ('a, 'b) proc * signal -> unit
+val kill_pid        : int -> int -> unit
 val reap            : ('a, 'b) proc -> OS.Process.status
 
 val fork            : unit -> int option

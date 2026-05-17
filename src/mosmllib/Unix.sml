@@ -59,10 +59,12 @@ in
 
 val kill_ : int -> int -> unit = app2 "kill"
 
-fun killpid (s : signal) (syspid : int) : unit = 
+val kill_pid : int -> int -> unit = kill_
+
+fun killpid (s : signal) (syspid : int) : unit =
     kill_ syspid (Word.toInt (Signal.toWord s))
 
-fun kill ({ syspid, ... } : ('a,'b) proc, s : signal) : unit = 
+fun kill ({ syspid, ... } : ('a,'b) proc, s : signal) : unit =
     killpid s syspid
     handle Fail s => raise Fail ("Unix.kill: " ^ s)
 
