@@ -44,7 +44,8 @@ app use
  "word8vector.sml",
  "word8vectorslice.sml",
  "packrealbig.sml",
- "packreallittle.sml"
+ "packreallittle.sml",
+ "unix.sml"				(* MOSML -- Unix.fork etc. *)
 ];
 
 ignore(Process.exit Process.success);

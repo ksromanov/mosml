@@ -101,13 +101,35 @@ fun binOutstreamOf ({syspid, ins, outs} : ('a, BinIO.outstream) proc)
 
 val waitpid_ : int -> int = app1 "waitpid"
 
-fun reap ({syspid, ins, outs} : ('a,'b) proc) : OS.Process.status = 
+fun reap ({syspid, ins, outs} : ('a,'b) proc) : OS.Process.status =
     let val status_ = waitpid_ syspid : int
-    in 
-	TextIO.closeIn (Obj.magic ins); 
-	TextIO.closeOut (Obj.magic outs); 
-	Obj.magic status_ 
+    in
+	TextIO.closeIn (Obj.magic ins);
+	TextIO.closeOut (Obj.magic outs);
+	Obj.magic status_
     end
     handle Fail s => raise Fail ("Unix.reap: " ^ s)
+
+val fork_ : unit -> int = app1 "fork"
+
+fun fork () : int option =
+    let val pid = fork_ ()
+    in if pid = 0 then NONE else SOME pid end
+    handle Fail s => raise Fail ("Unix.fork: " ^ s)
+
+val waitpid_status_ : int -> int * int = app1 "waitpid_status"
+
+fun waitpid (pid : int) : int =
+    let val (kind, code) = waitpid_status_ pid
+    in code end
+    handle Fail s => raise Fail ("Unix.waitpid: " ^ s)
+
+val getpid : unit -> int = app1 "getpid"
+
+val exit_ : int -> unit = app1 "exit"
+
+fun exit (code : int) : 'a =
+    (exit_ code; raise Fail "Unix.exit: unreachable")
+
 end
 end

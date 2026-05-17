@@ -150,3 +150,45 @@ EXTERNML value unix_kill(value pid, value sig) {
   return Val_unit;
 }
 
+/* ML type: unit -> int */
+EXTERNML value unix_fork(value unit) {
+  int pid;
+  fflush(stdout);
+  fflush(stderr);
+  pid = fork();
+  if (pid < 0)
+    failure();
+  return Val_long(pid);
+}
+
+/* ML type: int -> int * int */
+EXTERNML value unix_waitpid_status(value vpid) {
+  int status;
+  value res;
+  if (waitpid(Long_val(vpid), &status, 0) < 0)
+    failure();
+  res = alloc_tuple(2);
+  if (WIFEXITED(status)) {
+    Field(res, 0) = Val_long(0); /* exited */
+    Field(res, 1) = Val_long(WEXITSTATUS(status));
+  } else if (WIFSIGNALED(status)) {
+    Field(res, 0) = Val_long(1); /* signaled */
+    Field(res, 1) = Val_long(WTERMSIG(status));
+  } else {
+    Field(res, 0) = Val_long(2); /* stopped */
+    Field(res, 1) = Val_long(WSTOPSIG(status));
+  }
+  return res;
+}
+
+/* ML type: unit -> int */
+EXTERNML value unix_getpid(value unit) {
+  return Val_long(getpid());
+}
+
+/* ML type: int -> unit */
+EXTERNML value unix_exit(value code) {
+  _exit(Long_val(code));
+  return Val_unit; /* not reached */
+}
+

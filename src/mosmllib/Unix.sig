@@ -13,11 +13,16 @@ val textOutstreamOf : ('a, TextIO.outstream) proc -> TextIO.outstream
 val binInstreamOf   : (BinIO.instream, 'a) proc -> BinIO.instream
 val binOutstreamOf  : ('a, BinIO.outstream) proc -> BinIO.outstream 
 val kill            : ('a, 'b) proc * signal -> unit
-val reap            : ('a, 'b) proc -> OS.Process.status 
+val reap            : ('a, 'b) proc -> OS.Process.status
+
+val fork            : unit -> int option
+val waitpid         : int -> int
+val getpid          : unit -> int
+val exit            : int -> 'a
 end
-(* 
+(*
    This structure allows Moscow ML programs to start other processes
-   and to communicate with them.  
+   and to communicate with them.
 
    Child processes are not automatically terminated when the parent
    (ML) process terminates.  To forcibly terminate a child process pr,
@@ -53,7 +58,7 @@ end
    execute the command cmd with the argument list args in the
    environment env, as a separate process.  Returns a proc value
    representing the new process.  Typically, a string in the env list
-   has the form "NAME=VALUE".  See also Process.getEnv.  
+   has the form "NAME=VALUE".  See also Process.getEnv.
 
    [streamsOf pr] returns a pair (ins, outs) of input and output
    streams associated with process pr.  The standard output of pr is
@@ -71,7 +76,7 @@ end
 
    [binOutstreamOf pr] returns the binary output stream associated
    with process pr.  That is, the standard input of pr.
- 
+
    [reap pr] closes the input and output streams associated with pr,
    and then suspends the current (ML) process until the process
    corresponding to pr terminates.  Returns the exit status given by
@@ -85,4 +90,19 @@ end
 
    [kill (pr, s)] sends the signal s to the process pr.  Raises Fail
    in case of failure, e.g. if pr has already been killed.
+
+   [fork ()] creates a new process.  Returns NONE in the child
+   process, and SOME pid in the parent process, where pid is the
+   process id of the child.  Standard output and standard error are
+   flushed before forking.  Raises Fail in case of failure.
+
+   [waitpid pid] suspends the calling process until the child process
+   with process id pid terminates.  Returns the exit status code of
+   the child (0 for success).  Raises Fail in case of failure.
+
+   [getpid ()] returns the process id of the calling process.
+
+   [exit code] terminates the calling process immediately with exit
+   status code, without flushing buffers or running atexit handlers.
+   This is intended for use in child processes after fork.
 *)
