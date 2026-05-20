@@ -36,43 +36,94 @@ datatype basDec = Basis of basBind list | Local of (basDec list)*(basDec list)
     and includedFileType = UnknownFile | MLBFile | LoadedMLBFile of basDec list
       | FailedMLBFile of fileError | SIGFile | SMLFile | FUNFile
 
-(* Currently (6 sept 2016) MLton, SMLNJ, MLkit use only SML_LIB and
- * TARGET_ARCH (mlton). Valid values for TARGET_ARCH are:
- * netbsd, solaris, hurd, darwin, freebsd, mingw, cygwin, linux,
- * openbsd, hpux, aix. For MosML TARGET_ARCH=linux.
- *)
-val pathVariables = ref
-    [("SML_LIB","/workarea/mlkit/src/build_mosml/sml_lib"),
-     ("HOME_PATH","/home"),
-     ("TARGET_ARCH", "bytecode"),
-     ("TARGET_OS", "linux"),
-     ("DEFAULT_INT", "int32"),
-     ("DEFAULT_WORD", "word32"),
-     ("DEFAULT_REAL", "real64"),
-     ("LIB_MLTON_DIR", "/workarea/mlton"),
-     ("TARGET", "self"),
-     ("OBJPTR_REP", "rep64"),
-     ("HEADER_WORD", "word64"),
-     ("SEQINDEX_INT", "int64"),
-     ("SEQUENCE_METADATA_SIZE", "size128"),
-     ("NORMAL_METADATA_SIZE", "size64"),
-     ("DEFAULT_CHAR", "char8"),
-     ("DEFAULT_WIDECHAR", "widechar32"),
-     ("DEFAULT_INT", "int32"),
-     ("DEFAULT_REAL", "real64"),
-     ("DEFAULT_WORD", "word32")]
+(* Path variables, populated by -mlb-path-map and -mlb-path-var options.
+ * No hardcoded defaults: callers must supply all needed variables. *)
+val pathVariables : (string * string) list ref = ref []
 
-(* Returns the value of path variable by its name.
- * Currently works only with hardcoded predefined 
- * path variables. *)
-fun pathVariable variable =
+(* Set or replace a single path variable. *)
+fun setPathVar (name : string) (value : string) : unit =
+    pathVariables :=
+        (name, value) ::
+        List.filter (fn (n, _) => n <> name) (!pathVariables)
+
+(* Expand $(VAR) references inside a value string using current pathVariables. *)
+fun expandPathVarRefs (s : string) : string =
     let
-        val sub = List.find 
-            (fn (name, _) => (String.compare (name, variable)) = EQUAL)
-            (!pathVariables)
+        fun loop [] acc = String.implode (List.rev acc)
+          | loop (#"$" :: #"(" :: rest) acc =
+              let
+                  fun readVar [] var = (List.rev var, [])
+                    | readVar (#")" :: t) var = (List.rev var, t)
+                    | readVar (c :: t) var = readVar t (c :: var)
+                  val (varChars, rest') = readVar rest []
+                  val varName = String.implode varChars
+                  val expansion =
+                      case List.find (fn (n, _) => n = varName) (!pathVariables) of
+                          SOME (_, v) => String.explode v
+                        | NONE => String.explode ("$(" ^ varName ^ ")")
+              in
+                  loop rest' (List.rev expansion @ acc)
+              end
+          | loop (c :: rest) acc = loop rest (c :: acc)
     in
-        case sub of
-          SOME (name, value) => value
-        | NONE => raise Fail ("Unknown path variable " ^ variable)
+        loop (String.explode s) []
     end
+
+(* Parse and load an mlb-path-map file.
+ * Format: one entry per line, "VARIABLE value", comments start with #.
+ * $(VAR) references in values are expanded using already-defined variables. *)
+fun loadPathMap (file : string) : unit =
+    let
+        val ins = TextIO.openIn file
+        fun processLine line =
+            let
+                val s = Substring.full line
+                val s = Substring.dropl Char.isSpace s
+            in
+                if Substring.size s = 0
+                   orelse Substring.sub (s, 0) = #"#"
+                then ()
+                else
+                    let
+                        val (nameSub, rest) = Substring.splitl (fn c => not (Char.isSpace c)) s
+                        val name = Substring.string nameSub
+                        val value = Substring.dropr Char.isSpace
+                                        (Substring.dropl Char.isSpace rest)
+                        val value = expandPathVarRefs (Substring.string value)
+                    in
+                        if name = "" then ()
+                        else setPathVar name value
+                    end
+            end
+        fun readLines () =
+            case TextIO.inputLine ins of
+                NONE => ()
+              | SOME line => (processLine line; readLines ())
+    in
+        readLines ();
+        TextIO.closeIn ins
+    end
+    handle IO.Io {name, ...} =>
+        raise Fail ("Cannot read mlb-path-map file: " ^ name)
+
+(* Parse a "NAME VALUE" string as from -mlb-path-var on the command line.
+ * Expands $(VAR) references in value. *)
+fun parsePathVar (s : string) : unit =
+    let
+        val sub = Substring.full s
+        val sub = Substring.dropl Char.isSpace sub
+        val (nameSub, rest) = Substring.splitl (fn c => not (Char.isSpace c)) sub
+        val name = Substring.string nameSub
+        val value = Substring.string (Substring.dropl Char.isSpace rest)
+        val value = expandPathVarRefs value
+    in
+        if name = "" then raise Fail ("Invalid -mlb-path-var argument: " ^ s)
+        else setPathVar name value
+    end
+
+(* Returns the value of a path variable by name. *)
+fun pathVariable variable =
+    case List.find (fn (name, _) => name = variable) (!pathVariables) of
+        SOME (_, value) => value
+      | NONE => raise Fail ("Unknown path variable: " ^ variable)
 

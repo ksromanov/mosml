@@ -44,13 +44,15 @@ structure Options = struct
                 print
                 "usage: mosmlb [options] file.mlb\n\
                  \Options:\n\
-                 \  -debug (1|2|3|print) Set debug level to certain level or print final Mlb tree\n\
-                 \  -always-make         Rebuild all targets\n\
-                 \  -keep-going          Continue as much as possible after an error\n\
-                 \  -imitate             Do not actually run compiler and linker\n\
-                 \  -version             Print version and predefined path variables\n\
-                 \  -help                Print this message\n\
-                 \  -o <file>            Place the output into <file>\n";
+                 \  -debug (1|2|3|print)     Set debug level\n\
+                 \  -always-make             Rebuild all targets\n\
+                 \  -keep-going              Continue as much as possible after an error\n\
+                 \  -imitate                 Dry-run mode\n\
+                 \  -version                 Print version and path variables\n\
+                 \  -help                    Print this message\n\
+                 \  -o <file>                Output file\n\
+                 \  -mlb-path-map <file>     Load MLB path variables from file\n\
+                 \  -mlb-path-var 'VAR val'  Set a single MLB path variable\n";
                  BasicIO.exit 0
             )
 
@@ -59,14 +61,16 @@ structure Options = struct
             fun assignFalse r () = r := false
             fun assignOption r v = r := SOME v
         in
-            Arg.parse 
-               [("-debug", Arg.String setDebugLevel)
-               ,("-always-make",Arg.Unit (assignTrue alwaysMake))
-               ,("-keep-going", Arg.Unit (assignFalse Log.failEarly))
-               ,("-imitate",    Arg.Unit (assignTrue imitate))
-               ,("-version",    Arg.Unit printVersion)
-               ,("-help",       Arg.Unit printUsage)
-               ,("-o",          Arg.String (assignOption execFile))
+            Arg.parse
+               [("-debug",          Arg.String setDebugLevel)
+               ,("-always-make",    Arg.Unit (assignTrue alwaysMake))
+               ,("-keep-going",     Arg.Unit (assignFalse Log.failEarly))
+               ,("-imitate",        Arg.Unit (assignTrue imitate))
+               ,("-version",        Arg.Unit printVersion)
+               ,("-help",           Arg.Unit printUsage)
+               ,("-o",              Arg.String (assignOption execFile))
+               ,("-mlb-path-map",   Arg.String Mlb.loadPathMap)
+               ,("-mlb-path-var",   Arg.String Mlb.parsePathVar)
                ] (assignOption mlbFile);
             case !mlbFile of
               NONE =>
