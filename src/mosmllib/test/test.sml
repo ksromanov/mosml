@@ -45,7 +45,10 @@ app use
  "word8vectorslice.sml",
  "packrealbig.sml",
  "packreallittle.sml",
- "unix.sml"				(* MOSML -- Unix.fork etc. *)
+ "unix.sml",			(* MOSML -- Unix.fork etc. *)
+ "posix.sml",			(* MOSML -- Posix module *)
+ "posix_ocaml.sml",		(* MOSML -- Posix tests from OCaml Unix testsuite *)
+ "posix_mlton.sml"		(* MOSML -- Posix tests from MLton regression suite *)
 ];
 
 ignore(Process.exit Process.success);
