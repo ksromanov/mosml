@@ -1300,7 +1300,8 @@ EXTERN value interprete(int mode, bytecode_t bprog, int code_size, CODE* rprog)
 
     Instruct(TAGOF):
       if (Is_long(accu)) {
-        accu = Val_long(0);
+        /* Integer-represented constant constructor: value IS the ordinal */
+        accu = accu;
       } else {
         accu = Val_long(Tag_val(accu));
       }
