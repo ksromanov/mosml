@@ -94,6 +94,11 @@ local
   (* readlink from runtime *)
   prim_val readlink_ : string -> string = 1 "sml_readlink"
 
+  (* Convert C posix_failure() Fail exceptions to proper OS.SysErr.
+     SysErr is a built-in top-level exception (= OS.SysErr), available without qualification. *)
+  fun sysErr (thunk : unit -> 'a) : 'a =
+      thunk () handle Fail s => raise SysErr (s, NONE)
+
   (* Shared helpers *)
   fun mkBitFlags () =
       { flags     = fn (l : word list) => List.foldl Word.orb 0w0 l,
@@ -206,20 +211,22 @@ in
     fun pidToWord (p : pid) : word = Word.fromInt p
 
     fun fork () =
-        let val pid = unix_fork_ ()
-        in if pid = 0 then NONE else SOME pid end
+        sysErr (fn () =>
+          let val pid = unix_fork_ ()
+          in if pid = 0 then NONE else SOME pid end)
 
     fun exec (path, args) =
-        ( posix_execv_ path (Vector.fromList (path :: args));
+        ( sysErr (fn () => posix_execv_ path (Vector.fromList (path :: args)));
           raise Fail "exec: unreachable" )
 
     fun exece (path, args, env) =
-        ( posix_execve_ path (Vector.fromList (path :: args))
-                             (Vector.fromList env);
+        ( sysErr (fn () =>
+            posix_execve_ path (Vector.fromList (path :: args))
+                               (Vector.fromList env));
           raise Fail "exece: unreachable" )
 
     fun execp (file, args) =
-        ( posix_execvp_ file (Vector.fromList (file :: args));
+        ( sysErr (fn () => posix_execvp_ file (Vector.fromList (file :: args)));
           raise Fail "execp: unreachable" )
 
     datatype waitpid_arg
@@ -265,20 +272,23 @@ in
         | W_GROUP p    => ~p
 
     fun wait () =
-        let val (pid, kind, code) = posix_waitpid_any_ ()
-        in (pid, decodeStatus (kind, code)) end
+        sysErr (fn () =>
+          let val (pid, kind, code) = posix_waitpid_any_ ()
+          in (pid, decodeStatus (kind, code)) end)
 
     fun waitpid (arg, _) =
-        let val pid = pidOf arg
-            val (kind, code) = posix_waitpid_status_ pid
-        in (pid, decodeStatus (kind, code)) end
+        sysErr (fn () =>
+          let val pid = pidOf arg
+              val (kind, code) = posix_waitpid_status_ pid
+          in (pid, decodeStatus (kind, code)) end)
 
     fun waitpid_nh (arg, _) =
-        let val pid = pidOf arg
-            val (r, kind, code) = posix_waitpid_nh_ pid 0
-        in if r = 0 then NONE
-           else SOME (r, decodeStatus (kind, code))
-        end
+        sysErr (fn () =>
+          let val pid = pidOf arg
+              val (r, kind, code) = posix_waitpid_nh_ pid 0
+          in if r = 0 then NONE
+             else SOME (r, decodeStatus (kind, code))
+          end)
 
     datatype killpid_arg
       = K_PROC of pid
@@ -286,11 +296,12 @@ in
       | K_GROUP of pid
 
     fun kill (arg, signo) =
-        let val pid = case arg of
-                        K_PROC p     => p
-                      | K_SAME_GROUP => 0
-                      | K_GROUP p    => ~p
-        in unix_kill_ pid (Word.toInt signo) end
+        sysErr (fn () =>
+          let val pid = case arg of
+                          K_PROC p     => p
+                        | K_SAME_GROUP => 0
+                        | K_GROUP p    => ~p
+          in unix_kill_ pid (Word.toInt signo) end)
 
     fun alarm t =
         let val secs = Real.round (Time.toReal t)
@@ -450,24 +461,26 @@ in
     fun openModeInt m = case m of O_RDONLY => 0 | O_WRONLY => 1 | O_RDWR => 2
 
     fun openf (path, mode, oflags) =
-        posix_openf_ path (Word.toInt (Word.orb (Word.fromInt (openModeInt mode), oflags)))
+        sysErr (fn () =>
+          posix_openf_ path (Word.toInt (Word.orb (Word.fromInt (openModeInt mode), oflags))))
 
     fun createf (path, mode, oflags, perm) =
-        posix_createf_ path
-            (Word.toInt (Word.orb (Word.orb (Word.fromInt (openModeInt mode), oflags), 0w64 (* O_CREAT *))))
-            (Word.toInt perm)
+        sysErr (fn () =>
+          posix_createf_ path
+            (Word.toInt (Word.orb (Word.orb (Word.fromInt (openModeInt mode), oflags), 0w64)))
+            (Word.toInt perm))
 
-    fun creat (path, perm) = posix_creat_ path (Word.toInt perm)
+    fun creat (path, perm) = sysErr (fn () => posix_creat_ path (Word.toInt perm))
 
     fun umask m = Word.fromInt (posix_umask_ (Word.toInt m))
 
-    fun link {old, new}   = posix_link_ old new
-    fun mkdir (path, m)   = posix_mkdir_ path (Word.toInt m)
-    fun mkfifo (path, m)  = posix_mkfifo_ path (Word.toInt m)
-    fun unlink path       = posix_unlink_ path
-    fun rmdir path        = posix_rmdir_ path
-    fun rename {old, new} = posix_rename_ old new
-    fun symlink {old, new}= posix_symlink_ old new
+    fun link {old, new}   = sysErr (fn () => posix_link_ old new)
+    fun mkdir (path, m)   = sysErr (fn () => posix_mkdir_ path (Word.toInt m))
+    fun mkfifo (path, m)  = sysErr (fn () => posix_mkfifo_ path (Word.toInt m))
+    fun unlink path       = sysErr (fn () => posix_unlink_ path)
+    fun rmdir path        = sysErr (fn () => posix_rmdir_ path)
+    fun rename {old, new} = sysErr (fn () => posix_rename_ old new)
+    fun symlink {old, new}= sysErr (fn () => posix_symlink_ old new)
     fun readlink path     = readlink_ path
 
     type dev = word
@@ -514,9 +527,9 @@ in
           mtime = mt,
           ctime = ct }
 
-    fun stat  path = mkStat (posix_stat_  path)
-    fun lstat path = mkStat (posix_lstat_ path)
-    fun fstat fd   = mkStat (posix_fstat_ fd)
+    fun stat  path = sysErr (fn () => mkStat (posix_stat_  path))
+    fun lstat path = sysErr (fn () => mkStat (posix_lstat_ path))
+    fun fstat fd   = sysErr (fn () => mkStat (posix_fstat_ fd))
 
     datatype access_mode = A_READ | A_WRITE | A_EXEC
 
@@ -528,11 +541,11 @@ in
             val bits = toBits modes 0
         in posix_access_ path bits end
 
-    fun chmod  (path, m)     = posix_chmod_  path (Word.toInt m)
-    fun fchmod (fd, m)       = posix_fchmod_ fd   (Word.toInt m)
-    fun chown  (path, u, g)  = posix_chown_  path u g
-    fun fchown (fd, u, g)    = posix_fchown_ fd   u g
-    fun ftruncate (fd, n)    = posix_ftruncate_ fd n
+    fun chmod  (path, m)     = sysErr (fn () => posix_chmod_  path (Word.toInt m))
+    fun fchmod (fd, m)       = sysErr (fn () => posix_fchmod_ fd   (Word.toInt m))
+    fun chown  (path, u, g)  = sysErr (fn () => posix_chown_  path u g)
+    fun fchown (fd, u, g)    = sysErr (fn () => posix_fchown_ fd   u g)
+    fun ftruncate (fd, n)    = sysErr (fn () => posix_ftruncate_ fd n)
 
     fun pathconf  (path, prop) =
         case posix_pathconf_ path prop of
@@ -579,18 +592,19 @@ in
       val sync     : flags = 0w1052672
     end
 
-    fun close fd = posix_close_ fd
-    fun dup   fd = posix_dup_   fd
-    fun dup2  {old, new} = posix_dup2_ old new
-    fun dupfd {old, base} = posix_dupfd_ old base
+    fun close fd = sysErr (fn () => posix_close_ fd)
+    fun dup   fd = sysErr (fn () => posix_dup_   fd)
+    fun dup2  {old, new} = sysErr (fn () => posix_dup2_ old new)
+    fun dupfd {old, base} = sysErr (fn () => posix_dupfd_ old base)
     fun pipe  () =
-        let val (i, o_) = posix_pipe_ ()
-        in {infd = i, outfd = o_} end
+        sysErr (fn () =>
+          let val (i, o_) = posix_pipe_ ()
+          in {infd = i, outfd = o_} end)
 
-    fun getfd fd      = Word.fromInt (posix_getfd_ fd)
-    fun setfd (fd, f) = posix_setfd_ fd (Word.toInt f)
+    fun getfd fd      = sysErr (fn () => Word.fromInt (posix_getfd_ fd))
+    fun setfd (fd, f) = sysErr (fn () => posix_setfd_ fd (Word.toInt f))
 
-    fun setfl (fd, f) = posix_setfl_ fd (Word.toInt f)
+    fun setfl (fd, f) = sysErr (fn () => posix_setfl_ fd (Word.toInt f))
 
     fun getfl fd =
         let val r = posix_getfl_ fd
@@ -603,24 +617,27 @@ in
 
     fun whenceInt w = case w of SEEK_SET => 0 | SEEK_CUR => 1 | SEEK_END => 2
 
-    fun lseek (fd, off, wh) = posix_lseek_ fd off (whenceInt wh)
+    fun lseek (fd, off, wh) = sysErr (fn () => posix_lseek_ fd off (whenceInt wh))
 
-    fun readVec (fd, n) = posix_read_ fd n
+    fun readVec (fd, n) = sysErr (fn () => posix_read_ fd n)
 
     fun readArr (fd, slice) =
-        let val (arr, ofs, len) = Word8ArraySlice.base slice
-            val v = posix_read_ fd len
-            val n = Word8Vector.length v
-            val _ = Word8Array.copyVec {src = v, dst = arr, di = ofs}
-        in n end
+        sysErr (fn () =>
+          let val (arr, ofs, len) = Word8ArraySlice.base slice
+              val v = posix_read_ fd len
+              val n = Word8Vector.length v
+              val _ = Word8Array.copyVec {src = v, dst = arr, di = ofs}
+          in n end)
 
     fun writeVec (fd, slice) =
-        let val (vec, ofs, len) = Word8VectorSlice.base slice
-        in posix_write_ fd vec ofs len end
+        sysErr (fn () =>
+          let val (vec, ofs, len) = Word8VectorSlice.base slice
+          in posix_write_ fd vec ofs len end)
 
     fun writeArr (fd, slice) =
-        let val vec = Word8ArraySlice.vector slice
-        in posix_write_ fd vec 0 (Word8Vector.length vec) end
+        sysErr (fn () =>
+          let val vec = Word8ArraySlice.vector slice
+          in posix_write_ fd vec 0 (Word8Vector.length vec) end)
   end
 
   (* ------------------------------------------------------------------ *)

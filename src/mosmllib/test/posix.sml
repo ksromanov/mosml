@@ -683,6 +683,68 @@ val test_db8 = check'(fn _ =>
     in true end)
 
 (* ------------------------------------------------------------------ *)
+(* OS.SysErr tests: verify POSIX errors raise OS.SysErr, not Fail     *)
+(* These specifically reject Fail — only OS.SysErr is accepted.       *)
+(* ------------------------------------------------------------------ *)
+
+val _ = print "OS.SysErr tests...\n"
+
+(* stat on nonexistent path raises OS.SysErr (ENOENT) *)
+val test_syserr1 = check'(fn _ =>
+    (Posix.FileSys.stat "/no/such/path/exists"; false)
+    handle OS.SysErr _ => true
+         | _ => false)
+
+(* lstat on nonexistent path raises OS.SysErr *)
+val test_syserr2 = check'(fn _ =>
+    (Posix.FileSys.lstat "/no/such/path/exists"; false)
+    handle OS.SysErr _ => true
+         | _ => false)
+
+(* link with nonexistent source raises OS.SysErr (ENOENT) *)
+val test_syserr3 = check'(fn _ =>
+    (Posix.FileSys.link {old="/no/src/file", new="/no/dst/file"}; false)
+    handle OS.SysErr _ => true
+         | _ => false)
+
+(* unlink nonexistent file raises OS.SysErr (ENOENT) *)
+val test_syserr4 = check'(fn _ =>
+    (Posix.FileSys.unlink "/no/such/file/to/delete"; false)
+    handle OS.SysErr _ => true
+         | _ => false)
+
+(* openf nonexistent file raises OS.SysErr (ENOENT) *)
+val test_syserr5 = check'(fn _ =>
+    (Posix.FileSys.openf ("/no/such/file", Posix.FileSys.O_RDONLY,
+                           Posix.FileSys.O.flags []); false)
+    handle OS.SysErr _ => true
+         | _ => false)
+
+(* creat in nonexistent directory raises OS.SysErr (ENOENT) *)
+val test_syserr6 = check'(fn _ =>
+    (Posix.FileSys.creat ("/no/such/dir/file", Posix.FileSys.S.irwxu); false)
+    handle OS.SysErr _ => true
+         | _ => false)
+
+(* mkfifo on existing path raises OS.SysErr (EEXIST) *)
+val test_syserr7 = check'(fn _ =>
+    let val tmp = "/tmp/mosml_posix_syserr_fifo_test"
+        val _ = (Posix.FileSys.mkfifo (tmp, Posix.FileSys.S.irwxu))
+                handle OS.SysErr _ => ()
+    in (Posix.FileSys.mkfifo (tmp, Posix.FileSys.S.irwxu); false)
+       handle OS.SysErr _ => (Posix.FileSys.unlink tmp handle _ => (); true)
+            | _ => (Posix.FileSys.unlink tmp handle _ => (); false)
+    end)
+
+(* IO.close with bad fd raises OS.SysErr (EBADF) *)
+val test_syserr8 = check'(fn _ =>
+    let val fd = Posix.FileSys.wordToFD (Word.fromInt 9999)
+    in (Posix.IO.close fd; false)
+       handle OS.SysErr _ => true
+            | _ => false
+    end)
+
+(* ------------------------------------------------------------------ *)
 (* Summary                                                             *)
 (* ------------------------------------------------------------------ *)
 

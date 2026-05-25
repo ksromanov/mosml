@@ -191,11 +191,12 @@ val test_wait_nohang1 = check'(fn _ =>
                          end
         in ok end)
 
-(* WNOHANG with W_ANY_CHILD when no children: raises an exception *)
+(* WNOHANG with W_ANY_CHILD when no children: raises OS.SysErr (ECHILD) *)
 val test_wait_nohang2 = check'(fn _ =>
     (Posix.Process.waitpid_nh (Posix.Process.W_ANY_CHILD, []);
      true)   (* NONE is also OK if somehow no children *)
-    handle Fail _ => true)  (* ECHILD raises Fail: expected *)
+    handle OS.SysErr _ => true  (* ECHILD raises OS.SysErr *)
+         | Fail _ => true)      (* keep for older versions *)
 
 (* ------------------------------------------------------------------ *)
 (* From append.ml                                                      *)

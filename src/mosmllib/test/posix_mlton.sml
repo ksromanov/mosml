@@ -217,11 +217,11 @@ in
   (* stat cyclic/dangling symlinks: fails *)
   val test_fs8 = tst0 "fs_stat_cyclic_fails"
       ((Posix.FileSys.stat testcycl; "WRONG")
-       handle Fail _ => "OK" | _ => "OK")
+       handle OS.SysErr _ => "OK" | Fail _ => "OK" | _ => "OK")
 
   val test_fs9 = tst0 "fs_stat_dangling_fails"
       ((Posix.FileSys.stat testbadl; "WRONG")
-       handle Fail _ => "OK" | _ => "OK")
+       handle OS.SysErr _ => "OK" | Fail _ => "OK" | _ => "OK")
 
   (* link: hard link increases nlink to 2 — both hla and hlb exist *)
   val test_fs10 = tst' "fs_link_nlink"
@@ -240,7 +240,7 @@ in
   (* readlink on non-symlink: fails *)
   val test_fs14 = tst0 "fs_readlink_nonsymlink_fails"
       ((Posix.FileSys.readlink readme; "WRONG")
-       handle Fail _ => "OK" | _ => "OK")
+       handle OS.SysErr _ => "OK" | Fail _ => "OK" | _ => "OK")
 
   (* access: README exists and is readable *)
   val test_fs15 = tst' "fs_access_exists"
