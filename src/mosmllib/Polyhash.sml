@@ -284,6 +284,24 @@ end;
 	    f ((Array.length arr)-1, [])
 	  end
 
+    fun clear (HT{table, n_items, ...}) =
+        let val a = !table
+            val sz = Array.length a
+            fun clr i = if i < sz
+                        then (Array.update(a, i, NIL); clr (i+1))
+                        else ()
+        in clr 0; n_items := 0 end
+
+    fun peekSameHash (HT{hashVal, table, ...}) key =
+        let val arr = !table
+            val sz = Array.length arr
+            val h = hashVal key
+            val idx = index (h, sz)
+            fun count (NIL, n) = n
+              | count (B(_, _, _, r), n) = count(r, n+1)
+        in (count(Array.sub(arr, idx), 0), h)
+        end;
+
 prim_val hash_param : int -> int -> 'a -> int = 3 "hash_univ_param";
 
 fun hash x = hash_param 50 500 x;

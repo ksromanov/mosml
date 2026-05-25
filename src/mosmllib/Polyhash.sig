@@ -20,6 +20,8 @@ val transform   : ('data -> '_res) -> ('_key, 'data) hash_table
                   -> ('_key, '_res) hash_table
 val copy        : ('_key, '_data) hash_table -> ('_key, '_data) hash_table
 val bucketSizes : ('key, 'data) hash_table -> int list
+val clear       : ('key, 'data) hash_table -> unit
+val peekSameHash: ('key, 'data) hash_table -> 'key -> int * int
 
 (* Polymorphic hash primitives from Caml Light *)
 

@@ -48,7 +48,8 @@ app use
  "unix.sml",			(* MOSML -- Unix.fork etc. *)
  "posix.sml",			(* MOSML -- Posix module *)
  "posix_ocaml.sml",		(* MOSML -- Posix tests from OCaml Unix testsuite *)
- "posix_mlton.sml"		(* MOSML -- Posix tests from MLton regression suite *)
+ "posix_mlton.sml",		(* MOSML -- Posix tests from MLton regression suite *)
+ "polyhash.sml"			(* MOSML -- Polyhash.clear/peekSameHash *)
 ];
 
 ignore(Process.exit Process.success);
