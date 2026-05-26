@@ -72,9 +72,12 @@ static int sml_equal_aux(value v1, value v2)
  again:
   if (v1 == v2) return 1;
   if (Is_long(v1) || Is_long(v2)) return 0;
+  if (Tag_val(v1) != Tag_val(v2)) return 0;
+  /* Atoms (size-0 blocks, e.g. nullary constructors from first_atoms[]):
+     equal if tags match, regardless of memory location. */
+  if (Wosize_val(v1) == 0 && Wosize_val(v2) == 0) return 1;
   if (!Is_in_heap(v1) && !Is_young(v1)) return 0;
   if (!Is_in_heap(v2) && !Is_young(v2)) return 0;
-  if (Tag_val(v1) != Tag_val(v2)) return 0;
   switch(Tag_val(v1)) {
   case String_tag:
     { // Faster string comparison 2002-12-03
