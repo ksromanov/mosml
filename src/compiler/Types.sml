@@ -120,7 +120,9 @@ and tyname_exn = mkSML "exn"
     {tnStamp=mkSMLStamp(),  tnKind=ARITYkind 0, tnEqu=FALSEequ, tnSort=PARAMETERts, tnLevel=0, tnConEnv=ref NONE}
 and tyname_frag = mkSML "frag"
     {tnStamp=mkSMLStamp(),  tnKind=ARITYkind 1, tnEqu=TRUEequ,  tnSort=PARAMETERts, tnLevel=0, tnConEnv=ref NONE}
-and tyname_int = mktyname "Int" "int" 
+and tyname_int = mktyname "Int" "int"
+    {tnStamp=mkSMLStamp(),  tnKind=ARITYkind 0, tnEqu=TRUEequ,  tnSort=PARAMETERts, tnLevel=0, tnConEnv=ref NONE}
+and tyname_intinf = mktyname "IntInf" "int"
     {tnStamp=mkSMLStamp(),  tnKind=ARITYkind 0, tnEqu=TRUEequ,  tnSort=PARAMETERts, tnLevel=0, tnConEnv=ref NONE}
 and tyname_list = mkSML "list"  
     {tnStamp=mkSMLStamp(),  tnKind=ARITYkind 1, tnEqu=TRUEequ,  tnSort=PARAMETERts, tnLevel=0, tnConEnv=ref NONE}
@@ -1839,6 +1841,7 @@ val type_char      = type_con [] tyname_char;
 val type_exn       = type_con [] tyname_exn;
 fun type_frag t    = type_con [t] tyname_frag;
 val type_int       = type_con [] tyname_int;
+val type_intinf    = type_con [] tyname_intinf;
 fun type_list t    = type_con [t] tyname_list;
 fun type_option t  = type_con [t] tyname_option;
 val type_order     = type_con [] tyname_order;

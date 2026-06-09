@@ -61,6 +61,37 @@ fun resolveIntOvlId loc "~"    OVL1NNo       = negInt
   | resolveIntOvlId _   _      _             = fatalError "resolveIntOvlId"
 ;
 
+val negIntInf = mkPrimInfo 1 (MLPgv {qual="IntInf", id=["~"]})
+val absIntInf = mkPrimInfo 1 (MLPgv {qual="IntInf", id=["abs"]})
+val makestringIntInf = mkPrimInfo 1 (MLPgv {qual="IntInf", id=["toString"]})
+val addIntInf = mkPrimInfo 1 (MLPgv {qual="IntInf", id=["+"]})
+val subIntInf = mkPrimInfo 1 (MLPgv {qual="IntInf", id=["-"]})
+val mulIntInf = mkPrimInfo 1 (MLPgv {qual="IntInf", id=["*"]})
+val divIntInf = mkPrimInfo 1 (MLPgv {qual="IntInf", id=["div"]})
+val modIntInf = mkPrimInfo 1 (MLPgv {qual="IntInf", id=["mod"]})
+val ltIntInf  = mkPrimInfo 1 (MLPgv {qual="IntInf", id=["<"]})
+val gtIntInf  = mkPrimInfo 1 (MLPgv {qual="IntInf", id=[">"]})
+val leIntInf  = mkPrimInfo 1 (MLPgv {qual="IntInf", id=["<="]})
+val geIntInf  = mkPrimInfo 1 (MLPgv {qual="IntInf", id=[">="]});
+
+fun resolveIntinfOvlId loc "~"    OVL1NNo       = negIntInf
+  | resolveIntinfOvlId loc "abs"  OVL1NNo       = absIntInf
+  | resolveIntinfOvlId loc "makestring" OVL1NSo = makestringIntInf
+  | resolveIntinfOvlId loc "+"    OVL2NNNo      = addIntInf
+  | resolveIntinfOvlId loc "-"    OVL2NNNo      = subIntInf
+  | resolveIntinfOvlId loc "*"    OVL2NNNo      = mulIntInf
+  | resolveIntinfOvlId loc "div"  OVL2NNNo      = divIntInf
+  | resolveIntinfOvlId loc "mod"  OVL2NNNo      = modIntInf
+  | resolveIntinfOvlId loc "<"    OVL2NNBo      = ltIntInf
+  | resolveIntinfOvlId loc ">"    OVL2NNBo      = gtIntInf
+  | resolveIntinfOvlId loc "<="   OVL2NNBo      = leIntInf
+  | resolveIntinfOvlId loc ">="   OVL2NNBo      = geIntInf
+  | resolveIntinfOvlId loc id     _             =
+      errorOverloadingType loc id type_intinf;
+
+val eqIntInf = mkPrimInfo 1 (MLPgv {qual="IntInf", id=["eq"]})
+and noteqIntInf = mkPrimInfo 1 (MLPgv {qual="IntInf", id=["ne"]});
+
 val addWord = mkPrimInfo 1 MLPadd_word
 and subWord = mkPrimInfo 1 MLPsub_word
 and mulWord = mkPrimInfo 1 MLPmul_word
@@ -183,31 +214,37 @@ fun resolveOvlId loc id ovltype tau =
             CONt([], NAMEtyapp tyname) =>
               if isEqTN tyname tyname_int orelse isEqTN tyname tyname_char then
 		  eqInt
-              else if (isEqTN tyname tyname_word 
+              else if (isEqTN tyname tyname_word
 		       orelse isEqTN tyname tyname_word8) then
 		  eqWord
+              else if isEqTN tyname tyname_intinf then
+		  eqIntInf
 	      else
 		  eqPoly
-          | _ => 
+          | _ =>
 		eqPoly)
     | (OVL2EEBo, "<>") =>
         (case normType tau of
             CONt([], NAMEtyapp tyname) =>
-              if isEqTN tyname tyname_int 
+              if isEqTN tyname tyname_int
 		  orelse isEqTN tyname tyname_char then
 		  noteqInt
-              else if isEqTN tyname tyname_word 
+              else if isEqTN tyname tyname_word
 		  orelse isEqTN tyname tyname_word8 then
 		  noteqWord
+              else if isEqTN tyname tyname_intinf then
+		  noteqIntInf
 	      else
 		  noteqPoly
-          | _ => 
+          | _ =>
 		noteqPoly)
     | (_,_) =>
         (case normType tau of
             CONt([], NAMEtyapp tyname) =>
               if (isEqTN tyname tyname_int) then
                 resolveIntOvlId loc id ovltype
+              else if (isEqTN tyname tyname_intinf) then
+                resolveIntinfOvlId loc id ovltype
               else if (isEqTN tyname tyname_char) then
                 resolveCharOvlId loc id ovltype
               else if (isEqTN tyname tyname_real) then
@@ -220,7 +257,7 @@ fun resolveOvlId loc id ovltype tau =
                 resolveWord8OvlId loc id ovltype
               else
 	        errorOverloadingType loc id tau
-          | VARt _ => 
+          | VARt _ =>
 		  (* OK because "/" is not overloaded on `real' types: *)
 		  (unify tau type_int;
 		   resolveIntOvlId loc id ovltype)
@@ -230,14 +267,27 @@ fun resolveWord8OvlScon loc w =
     if w > 0w255 then errorConstTooLarge loc "Word8.word"
     else ();
 
-fun resolveOvlScon loc (scon as WORDscon w, ref (SOME tau)) =
+fun resolveOvlScon loc (scon as INTscon _, ref (SOME tau)) =
+    (case normType tau of
+	 CONt([], NAMEtyapp tyname) =>
+	     if (isEqTN tyname tyname_int) then
+		 ()
+	     else if (isEqTN tyname tyname_intinf) then
+		 ()
+	     else
+		 errorOverloadingScon loc "integer" tau
+       | VARt _ => unify tau type_int
+       | _      => errorOverloadingScon loc "integer" tau)
+  | resolveOvlScon loc (INTscon _, ref NONE) =
+	 fatalError "resolveOvlScon"
+  | resolveOvlScon loc (scon as WORDscon w, ref (SOME tau)) =
     (case normType tau of
 	 CONt([], NAMEtyapp tyname) =>
 	     if (isEqTN tyname tyname_word) then
 		 ()
 	     else if (isEqTN tyname tyname_word8) then
 		 resolveWord8OvlScon loc w
-	     else 
+	     else
 		 errorOverloadingScon loc "word" tau
        | VARt _ => unify tau type_word
        | _      => errorOverloadingScon loc "word" tau)

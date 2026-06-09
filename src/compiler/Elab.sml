@@ -1584,7 +1584,10 @@ fun elabTy (ME:ModEnv) (FE:FunEnv) (GE:SigEnv) (UE : UEnv) (VE:VarEnv) (TE : TyE
       elabTy ME FE GE UE VE TE ty
 ;
 
-fun elabSCon (INTscon i,    _     ) = type_int
+fun elabSCon (INTscon i, tyOptRef) =
+    let val ty = VARt (newTypeVar false  false  true)
+	                       (* nonequ nonimp overloaded *)
+    in tyOptRef := SOME ty; ty end
   | elabSCon (CHARscon c,   _     ) = type_char
   | elabSCon (WORDscon c, tyOptRef) =
     let val ty = VARt (newTypeVar false  false  true)

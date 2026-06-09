@@ -3,7 +3,7 @@
  *   small ints as tagged values (no allocation), large ints as heap blocks.
  *)
 
-eqtype int
+type int = intinf
 
 val precision : int option      (* NONE -- no bound *)
 val minInt    : int option      (* NONE *)

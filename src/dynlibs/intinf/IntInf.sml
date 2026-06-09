@@ -7,7 +7,7 @@
 
 exception Domain
 
-prim_eqtype int;
+type int = intinf;
 type largeint = int;
 
 local
@@ -75,9 +75,9 @@ local
 
 in
 
-fun fromInt  i = largeint_make_si i
-fun fromLarge x = x
-fun toLarge x = x
+fun fromInt (i : Int.int) : int = largeint_make_si i
+fun fromLarge (x : int) : int = x
+fun toLarge (x : int) : int = x
 
 fun toInt li =
     case (Int.minInt, Int.maxInt) of

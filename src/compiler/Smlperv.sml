@@ -199,7 +199,8 @@ val sml_initial_TE =
 [
    ("unit",     (APPtyfun (NAMEtyapp tyname_unit), ConEnv [])),
    ("bool",      (APPtyfun (NAMEtyapp tyname_bool), initial_bool_CE)),
-   ("int",       (APPtyfun (NAMEtyapp tyname_int), ConEnv [])), 
+   ("int",       (APPtyfun (NAMEtyapp tyname_int), ConEnv [])),
+   ("intinf",    (APPtyfun (NAMEtyapp tyname_intinf), ConEnv [])),
    ("syserror",  (APPtyfun (NAMEtyapp tyname_syserror), ConEnv [])),
    ("word",      (APPtyfun (NAMEtyapp tyname_word), ConEnv [])),
    ("word8",     (APPtyfun (NAMEtyapp tyname_word8), ConEnv [])),
