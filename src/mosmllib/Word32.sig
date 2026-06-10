@@ -39,9 +39,9 @@ val toInt      : word -> int
 val toIntX     : word -> int            (* with sign extension *)
 val fromInt    : int -> word
 
-val toLargeInt    : word -> int
-val toLargeIntX   : word -> int         (* with sign extension *)
-val fromLargeInt  : int -> word
+val toLargeInt    : word -> intinf
+val toLargeIntX   : word -> intinf      (* with sign extension *)
+val fromLargeInt  : intinf -> word
 
 val toLarge   : word -> Word.word
 val toLargeX  : word -> Word.word   (* with sign extension *)

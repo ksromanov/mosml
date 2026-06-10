@@ -125,9 +125,9 @@ fun toIntX ((hi, lo) : word) : int =
 	   in if v < 0 then raise Overflow else v end
     end;
 
-fun fromLargeInt x = fromInt x;
-fun toLargeInt x   = toInt x;
-fun toLargeIntX x  = toIntX x;
+fun fromLargeInt (i : intinf) : word = fromInt (IntInf.toInt i);
+fun toLargeInt (w : word) : intinf = IntInf.fromInt (toInt w);
+fun toLargeIntX (w : word) : intinf = IntInf.fromInt (toIntX w);
 
 fun toLarge (w : word) : word    = w;
 fun toLargeX (w : word) : word   = w;

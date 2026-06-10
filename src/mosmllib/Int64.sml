@@ -99,8 +99,8 @@ fun toInt ((hi, lo) : int) : Int.int =
        else raise Overflow
     end;
 
-fun fromLarge x = fromInt x;
-fun toLarge x   = toInt x;
+fun toLarge (i : int) : intinf = IntInf.fromInt (toInt i);
+fun fromLarge (i : intinf) : int = fromInt (IntInf.toInt i);
 
 (* Comparison *)
 

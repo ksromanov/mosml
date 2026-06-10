@@ -36,9 +36,9 @@ in
     prim_val toIntX  : word -> int = 1 "identity";
     prim_val fromInt : int -> word = 1 "identity";
 
-    prim_val toLargeInt   : word -> int = 1 "identity";
-    prim_val toLargeIntX  : word -> int = 1 "identity";
-    prim_val fromLargeInt : int -> word = 1 "identity";
+    fun toLargeInt (w : word) : intinf = IntInf.fromInt (toInt w)
+    fun toLargeIntX (w : word) : intinf = IntInf.fromInt (toIntX w)
+    fun fromLargeInt (i : intinf) : word = fromInt (IntInf.toInt i)
 
     prim_val toLargeWord   : word -> word = 1 "identity";
     prim_val toLargeWordX  : word -> word = 1 "identity";

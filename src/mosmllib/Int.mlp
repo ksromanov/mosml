@@ -140,5 +140,5 @@ fun sameSign (i, j) = sign i = sign j;
 
 fun toInt   i   = i;
 fun fromInt i   = i;
-fun toLarge   i = i;
-fun fromLarge i = i;
+fun toLarge (i : int) : intinf = IntInf.fromInt i;
+fun fromLarge (i : intinf) : int = IntInf.toInt i;

@@ -13,7 +13,7 @@ all: Array.uo Array2.uo ArraySlice.uo Arraysort.uo \
      CharVector.uo CharVectorSlice.uo CommandLine.uo \
      Date.uo Dynarray.uo Dynlib.uo \
      FileSys.uo Gdbm.uo Gdimage.uo Hashset.uo Help.uo \
-     Int.uo Int32.uo Int64.uo Intmap.uo Intset.uo IO.uo \
+     Int.uo Int32.uo Int64.uo IntInf.uo Intmap.uo Intset.uo IO.uo \
      LargeInt.uo LargeWord.uo \
      Lexing.uo List.uo ListPair.uo Listsort.uo Location.uo \
      Math.uo Misc.uo Mosml.uo Mosmlcgi.uo Mosmlcookie.uo Msp.uo Mysql.uo \
@@ -70,6 +70,14 @@ depend: Array.sml FileSys.sml Help.sml Int.sml Mosml.sml Path.sml \
 OS.ui: FileSys.ui Path.ui Process.ui
 
 ### DO NOT DELETE THIS LINE
+IntInf.uo: IntInf.ui Dynlib.ui
+Word8.uo: IntInf.ui
+Word32.uo: IntInf.ui
+Word64.uo: IntInf.ui
+Word.uo: IntInf.ui
+Int32.uo: IntInf.ui
+Int64.uo: IntInf.ui
+Int.uo: IntInf.ui
 VectorSlice.ui: Vector.ui 
 CommandLine.uo: CommandLine.ui Vector.ui 
 CharVectorSlice.ui: CharVector.ui Substring.ui Char.ui 

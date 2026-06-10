@@ -47,9 +47,9 @@ val toLargeWord   : word -> word
 val toLargeWordX  : word -> word        (* with sign extension *)
 val fromLargeWord : word -> word
 
-val toLargeInt    : word -> int
-val toLargeIntX   : word -> int         (* with sign extension *)
-val fromLargeInt  : int -> word
+val toLargeInt    : word -> intinf
+val toLargeIntX   : word -> intinf      (* with sign extension *)
+val fromLargeInt  : intinf -> word
 
 (* 
    [word] is the type of n-bit words, or n-bit unsigned integers.

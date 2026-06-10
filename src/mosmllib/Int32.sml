@@ -16,8 +16,8 @@ fun checkOvf (x : int) =
 
 fun fromInt (x : Int.int) : int = checkOvf x;
 fun toInt   (x : int) : Int.int = x;
-fun fromLarge x = fromInt x;
-fun toLarge   x = toInt x;
+fun toLarge (i : int) : intinf = IntInf.fromInt (toInt i);
+fun fromLarge (i : intinf) : int = fromInt (IntInf.toInt i);
 
 fun compare (x, y : int) =
     if x < y then LESS else if x > y then GREATER else EQUAL;

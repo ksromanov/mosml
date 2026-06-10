@@ -54,7 +54,7 @@ val pervasiveOpenedUnits = ["General"];
 val fulllib = ["Option", "List", "ListPair", "Strbase", "Char", "String",
 	       "StringCvt", "TextIO", "BasicIO", "Vector",
 	       "Array", "VectorSlice", "ArraySlice", "Misc", "Substring",
-	       "Bool", "Int", "Real", "Math",
+	       "Bool", "Dynlib", "IntInf", "Int", "Real", "Math",
 	       "Word", "Word8", "Word8Vector", "Word8Array", 
 	       "Word8VectorSlice", "Word8ArraySlice", "Byte",
 	       "BinIO", "CharVector", "CharArray",

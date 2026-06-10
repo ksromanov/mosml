@@ -31,9 +31,9 @@ in
 		       toInt (orb_ w (fromInt_ ~256))
     fun fromInt w  = norm (fromInt_ w);
 
-    prim_val toLargeInt : word -> int = 1 "identity";
-    val toLargeIntX = toIntX
-    val fromLargeInt = fromInt
+    fun toLargeInt (w : word) : intinf = IntInf.fromInt (toInt w)
+    fun toLargeIntX (w : word) : intinf = IntInf.fromInt (toIntX w)
+    fun fromLargeInt (i : intinf) : word = fromInt (IntInf.toInt i)
 
     prim_val toLargeWord   : word -> Word.word = 1 "identity";
     prim_val toLarge       : word -> Word.word = 1 "identity";

@@ -28,8 +28,8 @@ val compare   : int * int -> order
 
 val toInt     : int -> int
 val fromInt   : int -> int
-val toLarge   : int -> int
-val fromLarge : int -> int
+val toLarge   : int -> intinf
+val fromLarge : intinf -> int
 
 val scan      : StringCvt.radix 
                 -> (char, 'a) StringCvt.reader -> (int, 'a) StringCvt.reader
