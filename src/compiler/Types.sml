@@ -1,6 +1,16 @@
-open Misc List Fnlib Mixture 
-     Config 
+open Misc List Fnlib Mixture
+     Config
      Const Smlprim Globals Location Units;
+
+val bnsHash : ((string * int), TyApp) Hasht.t ref = ref (Hasht.new 1);
+
+fun bnsHashReset n = bnsHash := Hasht.new (n * 2 + 1);
+
+fun bnsHashInsert (tn : TyName) (tyapp : TyApp) =
+  Hasht.insert (!bnsHash) (#tnStamp(!(#info tn))) tyapp;
+
+fun lookupTyName (tn : TyName) (_ : (TyName * TyApp) list) =
+  Hasht.find (!bnsHash) (#tnStamp(!(#info tn)));
 
 (* cvr: operations on semantic structures *)
 
@@ -357,12 +367,12 @@ fun etaExpandTyFun tyfun =
 (* cvr: new, optimized and highly dodgy copying *)
 
 local 
-fun restrictBns bns1 bns2 = 
-    drop (fn (tn1,NAMEtyapp tn1') => 
-	       exists (fn (tn2,NAMEtyapp tn2') =>
-		           tn1 = tn2 andalso tn1' = tn2'
-	               | _ => false) bns2
-	  |  _ => false) bns1;
+fun restrictBns bns1 bns2 =
+    drop (fn (tn1, _) =>
+	       let val stamp1 = #tnStamp(!(#info tn1))
+               in exists (fn (tn2, _) =>
+                           #tnStamp(!(#info tn2)) = stamp1) bns2
+               end) bns1;
 fun restrictBvs bvs1 bvs2 = 
     drop (fn (tv1,VARt tv1') => 
 	       exists (fn (tv2,VARt tv2') =>
@@ -432,20 +442,21 @@ fun copyGlobal copyInfo bns bvs (global as {qualid,info}) =
 	     end
 ;
 
-fun copyTyNameSet tnSort bns bvs T =  
-  let val bns' = 
+fun copyTyNameSet tnSort bns bvs T =
+  let val bns' =
          map (fn tn =>
 	        case tn of
 		    {qualid,info = ref {tnKind,tnEqu,tnStamp,tnSort = _,tnLevel,tnConEnv}} =>
-                     let val tn' = {qualid = qualid, 
+                     let val tn' = {qualid = qualid,
 				    info = ref {tnKind = tnKind,
-						tnEqu = tnEqu, 
-						tnSort = tnSort, 
+						tnEqu = tnEqu,
+						tnSort = tnSort,
 						tnStamp = newTyNameStamp(),
 						tnLevel= !binding_level,
 						tnConEnv = ref NONE}}
-		     in (tn, NAMEtyapp tn')
-		     end) 
+                         val pair = (tn, NAMEtyapp tn')
+		     in bnsHashInsert tn (NAMEtyapp tn'); pair
+		     end)
 	 T
       val bns'' = bns'@bns
       fun copyConEnvs bns bvs [] = (bns,bvs,[])
@@ -557,10 +568,10 @@ and copyTypeScheme bns bvs (scheme as TypeScheme {tscParameters=vs,tscBody=ty}) 
 	    then (bns,bvs,true,scheme)
 	    else (bns,bvs,false,TypeScheme{tscParameters = vs',tscBody = cty})
         end
-and copyTyApp bns bvs tyapp  =  
+and copyTyApp bns bvs tyapp  =
     case tyapp of
-       NAMEtyapp tyname => 
-         (let val ctyapp = lookup tyname bns
+       NAMEtyapp tyname =>
+         (let val ctyapp = lookupTyName tyname bns
 	  in
 		 (bns,bvs,false,ctyapp)
 	  end
@@ -574,16 +585,18 @@ and copyTyApp bns bvs tyapp  =
 			      copyTyFun bns bvs tyfun 
 		      in
 			  if styfun then
-			      let val ctyname = 
+			      let val ctyname =
 				      copyAndRealiseTyName tyname tyfun
 				  val ctyapp = NAMEtyapp ctyname
-			      in ((tyname,ctyapp)::bns,bvs,false,ctyapp)
-			      end 
+			      in bnsHashInsert tyname ctyapp;
+                                 ((tyname,ctyapp)::bns,bvs,false,ctyapp)
+			      end
 			  else
-			      let val ctyname = 
+			      let val ctyname =
 				      copyAndRealiseTyName tyname ctyfun
 				  val ctyapp = NAMEtyapp ctyname
-			      in ((tyname,ctyapp)::bns,bvs,false,ctyapp)
+			      in bnsHashInsert tyname ctyapp;
+                                 ((tyname,ctyapp)::bns,bvs,false,ctyapp)
 			      end
 		      end))
     |  APPtyapp (tyapp',tyfun) =>  
@@ -822,15 +835,18 @@ in
 	#4 (copyStr bns bvs S)
     val copyRecStr = fn bns => fn bvs => fn S => 
 	#4 (copyRecStr bns bvs S)
-    val copyGenFun = fn bns => fn bvs => fn F => 
-	#4 (copyFun bns bvs F) 
-    val copyMod = fn bns => fn bvs => fn M => 
-	#4 (copyMod bns bvs M)
-    val copyExMod = fn bns => fn bvs => fn X => 
-	#4 (copyExMod bns bvs X)
-    val copySig = fn bns => fn bvs => fn G => 
-	#4 (copySig bns bvs G)
-    val copyTypeScheme = fn bns => fn bvs => fn scheme => 
+    fun initBnsHash bns =
+        (bnsHashReset (List.length bns * 2 + 17);
+         app (fn (tn, tyapp) => bnsHashInsert tn tyapp) bns)
+    val copyGenFun = fn bns => fn bvs => fn F =>
+        (initBnsHash bns; #4 (copyFun bns bvs F))
+    val copyMod = fn bns => fn bvs => fn M =>
+        (initBnsHash bns; #4 (copyMod bns bvs M))
+    val copyExMod = fn bns => fn bvs => fn X =>
+        (initBnsHash bns; #4 (copyExMod bns bvs X))
+    val copySig = fn bns => fn bvs => fn G =>
+        (initBnsHash bns; #4 (copySig bns bvs G))
+    val copyTypeScheme = fn bns => fn bvs => fn scheme =>
 	#4 (copyTypeScheme bns bvs scheme)
 end;
 
