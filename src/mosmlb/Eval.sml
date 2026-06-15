@@ -445,6 +445,7 @@ fun compileSource (scope: scope) (st: state) (ft: includedFileType, file: string
     : binding =
     let
         val absFile = resolvePath st file
+        val origAbsFile = absFile
         (* For .fun files, compile via a .sml alias to avoid Moscow ML's
          * automatic .sig/.fun interface pairing which is incompatible with
          * MLton's convention (MLton's .sig defines parameter signatures,
@@ -463,7 +464,7 @@ fun compileSource (scope: scope) (st: state) (ft: includedFileType, file: string
         val { compileFile, uiPath } =
             if ft = SMLFile then resolveSmlTarget scope absFile
             else resolveCompileTarget ft absFile
-        val bindingName = unitName absFile
+        val bindingName = unitName origAbsFile
 
         (* Sequence-based rebuild check: skip if this file was compiled
          * in this build and no dependency was compiled after it *)
@@ -479,8 +480,25 @@ fun compileSource (scope: scope) (st: state) (ft: includedFileType, file: string
                     ^ " uoPath=" ^ uoPathOf compileFile
                     ^ " uoExists=" ^ Bool.toString uoExists
                     ^ " seqFound=" ^ Bool.toString (isSome (getSeq uiPath)))
+        (* Disk-based incremental check: if output files exist and are newer
+         * than the source file, skip recompilation (across build runs). *)
+        fun modTimeOf path =
+            OS.FileSys.modTime path handle _ => Time.zeroTime
+        val srcModTime = modTimeOf absFile
+        val diskUpToDate =
+            case ft of
+                SIGFile =>
+                    let val uiT = modTimeOf uiPath
+                    in Time.> (uiT, srcModTime) end
+              | _ =>  (* SMLFile, FUNFile *)
+                    let val uoPath = uoPathOf compileFile
+                        val uoT = modTimeOf uoPath
+                        val uiT = modTimeOf (uiPathOf compileFile)
+                    in Time.> (uoT, srcModTime)
+                       andalso Time.> (uiT, srcModTime) end
         val upToDate =
-            case getSeq uiPath of
+            diskUpToDate orelse
+            (case getSeq uiPath of
                 NONE => false  (* never compiled in this build *)
               | SOME _ =>
                     (* Once compiled in this build, skip recompilation.
@@ -490,7 +508,7 @@ fun compileSource (scope: scope) (st: state) (ft: includedFileType, file: string
                     if ft <> SMLFile then true
                     else uoExists andalso
                          (uiPath = uiPathOf compileFile
-                          orelse isSome (getSeq (uiPathOf compileFile)))
+                          orelse isSome (getSeq (uiPathOf compileFile))))
 
         (* If there's a paired .sig file, we may need to handle the Moscow ML
          * auto-pairing issue. If the .sig was already compiled (its .ui exists),
@@ -790,6 +808,19 @@ fun compileSource (scope: scope) (st: state) (ft: includedFileType, file: string
     in
         if upToDate then
             let val b = { name = bindingName, uiPath = skipUiPath, kind = kindOfFile ft }
+                (* When disk-skipping, still add .uo to allUo and register seqNum *)
+                val _ = if diskUpToDate then
+                            let val newSeq = !(#compileSeq st) + 1
+                                val _ = (#compileSeq st) := newSeq
+                                val _ = (#uiSeqs st) :=
+                                    (uiPath, newSeq) ::
+                                    List.filter (fn (p,_) => p <> uiPath) (!(#uiSeqs st))
+                                val _ = if (ft = SMLFile orelse ft = FUNFile) then
+                                            let val uo = uoPathOf compileFile
+                                            in (#allUo st) := !(#allUo st) @ [uo] end
+                                        else ()
+                            in () end
+                        else ()
             in Log.debug 1 ("Skipping (up to date): " ^ absFile);
                if ft = SMLFile orelse ft = FUNFile then
                    registerDeclaredNames absFile b
