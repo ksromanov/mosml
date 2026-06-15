@@ -604,7 +604,7 @@ fun compileSource (scope: scope) (st: state) (ft: includedFileType, file: string
                           (scopeBindings scope),
                       bases = scopeBases scope }
                 val cmd = compileCmd filteredScope st actualCompileFile false
-                val fullCmd = "timeout 600 " ^ cmd ^ " >" ^ errFile ^ " 2>&1"
+                val fullCmd = "timeout 3600 " ^ cmd ^ " >" ^ errFile ^ " 2>&1"
                 val _ = Log.debug 1 ("Compiling: " ^ absFile)
                 val _ = Log.debug 1 ("FullCmd: " ^ fullCmd)
                 val rc = OS.Process.system fullCmd
