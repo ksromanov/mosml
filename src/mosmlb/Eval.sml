@@ -259,6 +259,33 @@ fun extractDeclName (srcFile: string) : string option =
         val _ = TextIO.closeIn ins handle _ => ()
     in result end
 
+fun extractAllDeclNames (srcFile: string) : string list =
+    let
+        val ins = TextIO.openIn srcFile
+        fun loop acc =
+            case TextIO.inputLine ins of
+              NONE => rev acc
+            | SOME line =>
+                let val toks = String.tokens (fn c => c = #" " orelse c = #"\t") line
+                in case toks of
+                     kw :: name :: _ =>
+                       if kw = "signature" orelse kw = "functor" then
+                           let val n = String.substring (name, 0,
+                                   let fun endIdx i =
+                                         if i >= String.size name then i
+                                         else let val c = String.sub(name,i)
+                                              in if c = #"(" orelse c = #"=" orelse c = #"\n" orelse c = #"\r"
+                                                 then i else endIdx (i+1)
+                                              end
+                                   in endIdx 0 end)
+                           in if n <> "" then loop (n :: acc) else loop acc end
+                       else loop acc
+                   | _ => loop acc
+                end
+        val result = loop [] handle _ => []
+        val _ = TextIO.closeIn ins handle _ => ()
+    in result end
+
 (* For a .sig file, determine the file to actually compile and the .ui path.
  * If the declared signature name differs from the file basename (e.g.
  * bitstream.sig declares BITSTREAM), we compile a temporary symlink
@@ -856,11 +883,35 @@ and evalBasdec (scope: scope) (st: state) (dec: basDec) : scope =
       (* Source file: compile with current scope as context *)
       Path (ft as SMLFile, file) => addBinding scope (compileSource scope st (ft, file))
     | Path (ft as SIGFile, file) =>
-        (* Always compile .sig files so their .ui is available for subsequent
-         * files in the MLB (even if there is a paired .sml later in the list).
-         * The paired .sml compilation will detect the existing .ui and skip
-         * the sig-prepend step. *)
-        addBinding scope (compileSource scope st (ft, file))
+        let val b = compileSource scope st (ft, file)
+            val scope' = addBinding scope b
+            val absFile = resolvePath st file
+            val allNames = extractAllDeclNames absFile
+            val primaryName = case extractDeclName absFile of SOME n => n | NONE => ""
+            fun isSimpleName n = n <> "" andalso n <> primaryName andalso
+                CharVector.all (fn c => Char.isAlphaNum c orelse c = #"_") n
+            val extraNames = List.filter isSimpleName allNames
+            val {dir, file = fname} = Path.splitDirFile absFile
+            val {dir = fileDir, ...} = Path.splitDirFile file
+        in
+            List.foldl (fn (sigName, sc) =>
+                let val sigUi = if dir = "" then sigName ^ ".ui"
+                                else dir ^ "/" ^ sigName ^ ".ui"
+                in if OS.FileSys.access (sigUi, []) then sc
+                   else
+                     let val sigAlias = if dir = "" then sigName ^ ".sig"
+                                        else dir ^ "/" ^ sigName ^ ".sig"
+                         val relAlias = if fileDir = "" then sigName ^ ".sig"
+                                        else fileDir ^ "/" ^ sigName ^ ".sig"
+                         val _ = ignore (OS.Process.system
+                                   ("ln -sf \"" ^ fname ^ "\" \"" ^ sigAlias ^ "\""))
+                         val _ = Log.debug 1 ("Compiling extra sig: " ^ sigAlias)
+                         val b2 = compileSource sc st (SIGFile, relAlias)
+                         val _ = (ignore (OS.Process.system ("rm -f \"" ^ sigAlias ^ "\"")) handle _ => ())
+                     in addBinding sc b2
+                     end
+                end) scope' extraNames
+        end
     | Path (ft as FUNFile, file) => addBinding scope (compileSource scope st (ft, file))
 
       (* Loaded MLB file: evaluate its declarations in the .mlb's directory context *)
