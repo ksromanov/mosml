@@ -828,7 +828,16 @@ fun compileSource (scope: scope) (st: state) (ft: includedFileType, file: string
                b
             end
         else
-            let val b = doCompile 3
+            (* Pre-register in uiSeqs BEFORE compilation starts, so that
+             * parallel MLB evaluations (due to multiple MLB inclusions) see
+             * this file as "already in progress" and skip it. This prevents
+             * parallel compilations of the same file. *)
+            let val newSeq = !(#compileSeq st) + 1
+                val _ = (#compileSeq st) := newSeq
+                val _ = (#uiSeqs st) :=
+                    (uiPath, newSeq) ::
+                    List.filter (fn (p,_) => p <> uiPath) (!(#uiSeqs st))
+                val b = doCompile 3
             in if ft = SMLFile orelse ft = FUNFile then
                    registerDeclaredNames absFile b
                else ();
