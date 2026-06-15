@@ -922,7 +922,10 @@ and evalBasdec (scope: scope) (st: state) (dec: basDec) : scope =
                              rootDir = if dir = "" then #rootDir st else dir,
                              compileSeq = #compileSeq st,
                              uiSeqs = #uiSeqs st }
-        in evalDecs scope nestedSt decs end
+            val emptyScope = Scope { bindings = [], bases = [] }
+            val innerScope = evalDecs emptyScope nestedSt decs
+            val newBindings = scopeBindings innerScope
+        in foldl (fn (b, s) => addBinding s b) scope newBindings end
 
       (* Failed/unknown paths: skip *)
     | Path (FailedMLBFile _, _) => scope
