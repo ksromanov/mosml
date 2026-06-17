@@ -1,5 +1,5 @@
-(* LargeInt -- 64-bit signed integers as LargeInt for Moscow ML
-   LargeInt.int = Int64.int = (Int.int * Int.int)
-   This provides the SML Basis Library LargeInt structure with 64-bit precision. *)
+(* LargeInt -- arbitrary precision integers as LargeInt for Moscow ML
+   In Moscow ML, IntInf provides arbitrary precision, matching the SML Basis
+   Library requirement that LargeInt.int be at least as large as any fixed-width int. *)
 
-structure LargeInt = Int64;
+structure LargeInt = IntInf;
